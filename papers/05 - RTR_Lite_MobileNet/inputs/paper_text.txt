@@ -1,0 +1,1194 @@
+                                         Current Plant Biology 42 (2025) 100459
+                                      Contents lists available at ScienceDirect
+
+                                   Current Plant Biology
+
+                              journal homepage: www.elsevier.com/locate/cpb
+
+RTR_Lite_MobileNetV2: A lightweight and efficient model for plant disease
+detection and classification
+
+Sangeeta Duhan a,1 , Preeti Gulia a,2, Nasib Singh Gill a,*,3, Ekta Narwal b,4
+
+a Department of Computer Science & Applications, Maharshi Dayanand University, Rohtak, Haryana 124001, India
+b Department of Mathematics, Maharshi Dayanand University, Rohtak, Haryana 124001, India
+
+ARTICLE INFO                  ABSTRACT
+
+Keywords:                     Early identification and management of plant diseases are paramount for sustaining crop health, ensuring
+Attention mechanisms          optimal yields, and safeguarding food security in agricultural systems. Left untreated, diseases caused by fungi,
+Deep learning                 bacteria, viruses, and pests can significantly diminish agricultural output, posing a threat to global food pro-
+Image classification          duction. While recent research has explored machine learning-based techniques for early disease detection, many
+Plant disease identification  proposed models are resource-intensive, characterized by large model sizes, and millions of trainable parameters.
+Precision agriculture         Recognizing resource-constrained devices' needs, recent studies have developed lightweight models, but their
+                              shallow structure may hinder accurate disease identification. This study proposes the RTR_Lite_MobileNet model,
+                              an enhanced version of the original MobileNetV2 model designed for efficient deployment on resource-
+                              constrained devices. Different attention techniques, such as Squeeze-and-Excitation Networks (SENet), Effi-
+                              cient Channel Attention (ECA), and Triplet Attention, are added to reduce the model's computational footprint
+                              while boosting its ability to capture complicated disease patterns. Extensive experimentation validates the ef-
+                              ficacy of RTR_Lite_MobileNet, consistently outperforming MobileNetV2 with top accuracies across multiple
+                              datasets: 99.92 % on Plant Disease, 82.00 % on PlantDoc, 97.11 % on PaddyDoctor, 90.84 % on Coffee, 100 % on
+                              Wheat, 96.78 % on Soybean, and 96.67 % on Sugarcane. Deployment on edge devices such as Raspberry Pi 4 and
+                              5 demonstrates its computational efficiency, as evidenced by lower latency and memory consumption. Research
+                              results indicate that RTR_Lite_MobileNet is a practical and effective option for real-time plant disease diagnosis,
+                              paving the way for additional uses in agricultural monitoring and IoT applications.
+
+1. Introduction                                                             potato, rice, soybean, and wheat crops worldwide. The annual cost of
+                                                                            plant diseases caused by bacteria, fungi, nematodes, and viruses to the
+    Achieving the Sustainable Development Goals (SDG) requires              global economy is estimated at USD 220 billion [3]. Plant diseases affect
+building food systems that are equitable, resilient, and sustainable. With  agricultural yields, impact crop quality, and shorten shelf life. Plant
+the global population expected to reach 10 billion by 2050, agricultural    disease also reduces the nutritional value of fruits and vegetables. On
+advancement is necessary to reduce poverty, secure food availability,       crop productivity, plant diseases have a significant impact. Therefore it
+and enhance prosperity. However, the combined impact of climate             is crucial to identify them in their earliest stages. Manual identification
+change and the agricultural sector's extensive use of pesticides, fertil-   of plant diseases is difficult because it requires a certain amount of
+izers, and herbicides has intensified environmental concerns worldwide      expertise and real-time observation. Additionally, if the disease identi-
+[1,2].                                                                      fied after observation is correct or misdiagnoses happen, there is no way
+                                                                            of knowing it. Crop health needs to be monitored to provide useful
+    Plant diseases and pests cause yield losses of up to 40 % in maize,
+
+  * Corresponding author.
+     E-mail addresses: sangeetaduhan.rs.dcsa@mdurohtak.ac.in (S. Duhan), preeti@mdurohtak.ac.in (P. Gulia), nasib.gill@mdurohtak.ac.in (N.S. Gill), ektanarwal.
+
+math@mdurohtak.ac.in (E. Narwal).
+  1 0000-0003-2312-1211
+  2 0000-0001-8535-4016
+  3 0000-0002-8594-4320
+  4 0000-0001-6281-7209
+
+https://doi.org/10.1016/j.cpb.2025.100459
+Received 17 August 2024; Received in revised form 31 January 2025; Accepted 8 February 2025
+Available online 12 February 2025
+2214-6628/© 2025 The Author(s). Published by Elsevier B.V. This is an open access article under the CC BY license (http://creativecommons.org/licenses/by/4.0/).
+S. Duhan et al.                                                                                                                                   Current Plant Biology 42 (2025) 100459
+
+information for decision-making. Therefore, it is necessary to create           1.1. Related works
+automated disease recognition systems that can operate accurately,
+quickly, and affordably. However, developing such systems is chal-                  A brief overview of recent studies that have worked on developing
+lenging and requires a significant investment of time [4]. Despite these        lightweight models is provided in Table 1. Mostly those study that have
+challenges, addressing plant diseases is crucial, as they reduce the            worked on improving classification results by introducing attention
+nutritional value of products and have an effect on crop quality and            mechanisms for accurate plant disease identification are considered.
+quantity. Early detection is therefore crucial for effectively managing
+plant diseases and minimizing their damage [5,6].                                   Panchbhai et al. [22] developed CAS-MODMOBNET model, a
+                                                                                modified version of MobileNetV2, is developed to classify cashew fruit
+    With the latest advancement in machine learning (ML), the Internet          and nut diseases. The modification involves refining the architectural
+of Things (IoT), and computer vision, precision agriculture is now              layers to reduce the overall parameter count and integrating an average
+adopting cutting-edge, innovative approaches. Deep learning methods             pooling layer with a pool size of 3 × 3 to optimize feature extraction.The
+particularly convolutional neural networks (CNNs) have been instru-             proposed model efficiently classified cashew fruit and nuts disease but
+mental in identifying key features for a variety of applications, including     proposed model performance on other datasets is not tested, model
+the detection of plant diseases. Leveraging techniques like You Only            generalizability needs to be further test. Raj kumar et al. [23] proposed a
+Look Once (YOLO), the real-time detection of plant diseases has become          lightweight sequential CNN architecture for diagnosing plant leaf dis-
+significantly more attainable [6]. Consequently, DL has gained wide-            eases, specifically targeting on early and late blight in tomato and potato
+spread adoption, driven by the availability of large datasets, enhanced         leaves. It aims to address the computational complexity of traditional
+computational resources, and improved training methodologies. Stan-             CNNs by reducing parameters to approximately 70 %. While reducing
+dard CNN architectures such as DenseNet [7], VGG16 [8], and ResNet              computational resources demand and training time, the lightweight
+[9] are frequently used [10,11], researchers have developed customized          model struggles to capture complex hierarchical features, thus poten-
+CNN architectures for plant disease identification [12]. Additionally,          tially impacting classification accuracy. Arya and Mishra [20] proposed
+lightweight models such as MobileNetV2 [13], ShuffleNetV2 [14], and             a hybrid model that integrates Inception module in the last layer of
+EfficientNetLite [15] become popular as reliable options because they           MobileNetV2 architecture. They utilized pretrained model weights for
+can be deployed on both mobile and embedded devices. Nevertheless,              transfer learning. Alkanan and Gulzar [24] present a modified Mobile-
+current improvements in plant diseases diagnosis can be considered as           NetV2 architecture by adding addition layers such as Average Pooling,
+challenging due to several aspects. These factors include the wide range        Flatten, Dense, Dropout, and Softmax. This, in turn, enhances the
+of disease types found in many crops, the advent of new diseases, and the       model's capacity to extract intricate features related to corn diseases,
+lack of in-field data for many crops. While DL models give good results,        thereby improving its discriminant capabilities. Sutaji et al. [25] present
+they require abundant training data, and lightweight CNN models still           a lightweight ensemble model that combines MobileNetV2 and Xcep-
+struggle to generalize effectively across all crop types. There are two         tion. The MobileNetV2 model is chosen for its efficiency on mobile de-
+main challenges faced by the researcher. First is interpreting ML system        vices, while Xception is selected for its feature extraction capabilities to
+decisions to anticipate potential failures, and designing efficient, light-     improve plant disease detection. The ensemble model joins together
+weight CNN models that are capable of identifying a wide range of plant         features of both models, thus enhancing accuracy and sturdiness.
+diseases [16].                                                                  Transfer learning and fine tuning are utilized to improve the model's
+                                                                                performance. Altalak et al. [26] developed a hybrid DL approach to
+    Various studies have utilized MobileNetV2 [13] for developing so-           identify tomato plant diseases. Using three essential components--a
+lutions for automatic plant disease identification [17­19]. Some studies        ResNet50 for initial feature extraction, a CBAM [27] to improve the
+[20­22] have also proposed creating lightweight versions of Mobile-             feature selection by concentrating on significant areas in the images, and
+NetV2. However, the issues of generalization and result interpretation in       support vector machines (SVM) to replace the conventional FC layer and
+lightweight deep learning models remain unaddressed. To tackle this             increase classification accuracy.
+issue, this study developes a lightweight MobileNetV2 model using
+various attention mechanisms, such as SENet and residual connections,               Biswas et al. [12] present an energy-efficient CNN architecture for
+to create the solutions.                                                        plant disease detection based on Inception and ResNet. The model
+                                                                                minimizes computational complexity and parameter size without
+    In this study, RTR_Lite_MobileNet is developed, which is a refined          affecting performance. To solve the vanishing gradient problem, it uses
+lightweight variant of MobileNetV2, designed to optimize performance            residual connections and depth-wise separable convolution.
+on resource-constrained devices. By integrating attention mechanisms
+such as SENet, ECA, and Triplet Attention, the proposed approach                    Chen et al. [28] proposed a model, Mobile-DANet, which aims to
+enhance feature extraction while minimizing computational demands.              identify maize crop diseases using a novel network architecture. This
+This work seeks to address both the generalization and interpretability         model is constructed using DenseNet and integrates depthwise separable
+challenges faced by lightweight models in plant disease identification,         convolution within dense blocks. Besides that, there is a spatial and
+providing an efficient and adaptable solution suitable for real-time            channel attention mechanism (SCAM) to learn interchannel interactions
+deployment in agricultural environments.                                        and spatial details. Initially, the model is trained on the PlantVillage
+                                                                                dataset [29] to increase accuracy and reduce computational expenses.
+    The main objectives of study are describe as:                               The focal loss function is applied in the multi-classification problem,
+                                                                                which enhances the accuracy of disease diagnosis.
+1. To propose a lightweight and computationally efficient variant of the
+    MobileNetV2 model, named RTR_Lite_MobileNet, which is trained                   The study proposed by Shafik et al. [30] introduces two models:
+    on seven publicly available datasets and demonstrates superior re-          PDDNet-AE (Early Fusion) and PDDNet-LVE (Lead Voting Ensemble). In
+    sults compared to the pretrained MobileNetV2 model.                         the PDDNet-AE, the deep features extracted from the multiple CNNs are
+                                                                                fused by early average fusion, and for classification, a logistic regression
+2. To utilize advanced attention mechanisms such as Triplet Attention,          classifier is employed. In PDDNet-LVE, the final class label of an image is
+    SENet, and ECA module in the RTR_Lite_MobileNet model to enhance            determined throught a majority voting method, selecting the prediction
+    its performance by improving feature representation and classifica-         with the highest accuracy prediction from each CNN. Dai et al. [31]
+    tion accuracy.                                                              present the DFN-PSAN model, which is a multi-level deep information
+                                                                                feature fusion extraction network that classifies plant disease in natural
+3. To demonstrate how attention mechanisms can replace specific                 field environments. A new PSAN (Pyramidal Squeezed Attention
+    model components, reduce the model's size, and show that adding             Network) is introduced for classification and uses the YOLOv5 Backbone
+    attention mechanisms to a lightweight model can lead to significant         and Neck network as the base structure (DFN). The PSAN network
+    performance gains, positioning RTR_Lite_MobileNet as a reliable and
+    efficient solution for image classification tasks.
+
+                                                                             2
+   Table 1                                                                                                                                                                                                          S. Duhan et al.
+   A brief overview of recent works that have focused on developing lightweight or improved classification models for plant disease identification.
+
+   Authors         Technique                 Data Pre-              Dataset used   Model           Accuracy     Precision    Recall                  F1-Score     Limitations             Future Scope
+                                             processing                            Parameters                                                        97.4 %- CAS
+                                                                                                                                                     -CNN         The model's             Dataset contain only a
+   Panchbhai et al. CAS-MODMOBNET-R          Data augmentation      Cashew fruit   2278,468 - CAS  97.4 %- CAS  98.0 %- CAS  97.0 %- CAS             98.7 %-      generalizability is     few images. In future
+                                             ­ Rotation, flipping   and Nut        -CNN            -CNN         -CNN         -CNN                    CAS-         not tested.             work, the dataset can be
+   [22]            And CAS -CNN                                     images         2278,468 -      98.7 %       98.9 %-CAS-  100.0 % -CAS-           MODMOBNET-                           increased by including
+                                                                                   CAS-            CAS-         MODMOBNET-   MODMOBNET-              R            Model performance       more samples of disease
+   Raj kumar et al. CNN                                             Tomato and     MODMOBNET-      MODMOBNET-   R            R                       -            on a complex dataset    classes.
+     [23]                                                                          R               R                                                              is not considered,      Future work should
+                                                                                   4200,291        98.20 %      -            -                       98.75 %      and only accuracy is    focus on making the
+                                                                                                                                                                  used for model          model more
+                                                                    Potato ­                                                                         96.02 %      performance             lightweight, and for
+                                                                                                                                                                  evaluation.             model performance
+                                                                    PlantVillage                                                                     99.03 %      The model's             evaluation, different
+                                                                                                                                                                  generalizability is     metrics can be used.
+                                                                    Dataset                                                                          -            not tested.             Future research can
+                                                                                                                                                                                          work on improving the
+   Arya and        Pre-trained mobilenetv2     Data                 Rice Leaf      2502,468,       98.75 %      98.76 %      98.75 %                 95.11 %      Proposed model's        performance of the
+     Mishra, [20]  and Inception module        Augmentation         Disease Image                  96.27 %      96.06 %      96.03 %                 99.92 %      performance is low,     proposed model.
+                                               ­Rotation,           Samples                                                                          60 %         and its
+                                               Brightness,                                                                                           97.00 %      generalizability is     Future research can use
+   Alkanan and     MobileNetv2 + Layer         Horizontal and       Corn Seeds     -                                                                              not tested.             attention mechanisms
+     Gulzar [24]   Dropout                     vertical Flipping)                                                                                                                         to improve the
+                                                                                                                                                                  The model is quite      performance and
+                                                                                                                                                                  complex, and the        misclassification issues
+                                                                    Dataset                                                                                       generalizability of     of the proposed model.
+                                                                                                                                                                  the model is not        The model size is 193
+3                                                                                                                                                                 explored.               MB with a trainable
+                                                                                                                                                                                          parameter count of
+   Sutaji and      LEMOXINET                   Image resize to      Plantvillage   26,567,310      99.10 %      99.10 %      99.02 %                              Model performance       11,980,622. Future
+     Yildiz [25]   (MobileNetV2 + Xception)    224x224 pixels,      dataset ­ 39                                                                                  needs to be             work can focus on
+                   model.                      normalization        classes                                                                                       improved, and the       reducing the parameters
+                                                                                                                                                                  generalizability of     and model size to make
+   Altalak et al.  ResNet101 + CBAM            Color Conversion: Tomato plant                      97.2 %       -            -                                    the model is not        it more lightweight.
+     [26]          + SVM                                                                                                                                          explored.               Attention modules give
+                                               RGB to BGR.          disease                                     95.11 %      95.17 %                                                      different results at
+                                                                                                                99.92 %      99.92 %                              Model performance       different locations in
+                                               Data                 -PlantVillage                               58 %         63 %                                 needs to be             the model. In future
+                                                                                                                97.00 %      97.00 %                              improved.               works, ablation
+                                               Augmentation:        Dataset                                                                                                               experiments can be
+                                                                                                                                                                  Model performance       carried out to find the
+                                               Rotation, Shifting,                                                                                                decreases when          optimal position of
+                                                                                                                                                                  tested on a real-field  CBAM in the proposed
+                                               Flipping, and                                                                                                      dataset.                model.
+                                                                                                                                                                                          Future works can focus
+                                               Zooming                                                                                                                                    on improving the model
+                                                                                                                                                                                          performance along with
+   Biswas et al.   CNN                         Images are cropped   Plant village  3.5 million     95.17 %                                                                                reducing the model size   Current Plant Biology 42 (2025) 100459
+     [12]                                      100x100 pixels       Rice Dataset,                  99.92 %                                                                                for its real-time use on
+                                                                    Cassava                        63 %                                                                                   mobile devices.
+                                                                    dataset                                                                                                               Future work can focus
+                                                                                                   98.50 %                                                                                on improving model
+   Chen et al.[28] Mobilenetv2 + DenseNet      Augmentation ­       Maize leaf                                                                                                            performance and
+                                                                                                                                                                                          addressing the
+                   + SCAM                      DCGAN, random        image ­
+                                                                                                                                                                                          (continued on next page)
+                                               vertical or          PlantVillage
+
+                                               horizontal flipping, Dataset
+   Table 1 (continued )                                                                                                                                                                      S. Duhan et al.
+
+   Authors         Technique                  Data Pre-              Dataset used    Model        Accuracy    Precision  Recall   F1-Score  Limitations           Future Scope
+                                              processing                             Parameters   95.86 %     83.45 %    83.45 %  83.45 %
+                                                                     Local maize                                         -        -                               misclassification issue
+                                              random angle           images - 466    -                                                                            with the model.
+                                              rotation, scale                                                            97.49 %  98.03 %
+   Shafik et al.   PDDNet-AE (Early Fusion),  transform, and         PlantVillage    -            96.74 %-    -          93.52 %  94.38 %   The inclusion of      Only the PlantVillage
+     [30]          PDDNet-LVE (Major          colour jittering       Dataset ­ 15                                        94.06 %  93.41 %   multiple CNNs         dataset is used to
+                   voting)                    Data enhancement       classes         26,151       PDDNet-AE              98 %     98 %      increases the         evaluate the model's
+                                              ­ noise injection,                                                                            model's complexity    performance. Future
+                                              scaling, flipping,     Katra-Twelve                 97.79 % -                                 and interpretation.   work can consider
+                                              rotation, gamma        - Public                                                                                     working on datasets
+                                              correction,            dataset                      PDDNet-LVE                      -                               that contain real-field
+                                              principal              BARI-                                                        99 %                            images.
+                                              component              Sunflower -
+   Dai et al., [31] Yolov5 + PSA              analysis, and color    Public dataset               98.37 %     98.59 %                       Model performance     Future work can focus
+                                              augmentation.          FGVC8 ­                      94.23 %     95.26 %                       needs to be           on using the latest
+                                              Data augmentation      Public dataset               93.24 %     92.78 %                       improved.             YOLO variant, like
+                                              - Gaussian filtering,  PlantVillage                 98 %        98 %                                                YOLOv9, to see if the
+                                              non-local means        Dataset - 9                                                                                  same modification also
+                                              denoising, and                                                                                                      enhances the latest
+                                              brightness/                                                                                                         YOLO variants.
+                                              contrast
+   Rakibet al.     Quantized CNN              adjustment                                                                                    The model             Further research can
+     [32]                                                                                                                                   recognises only nine  focus on expanding the
+                                              -                                                                                             classes of plant      model's capabilities to
+                                                                                                                                            diseases.             identify a wider range of
+4                                                                                                                                                                 plant diseases. By
+                                                                                                                                            Model performance     delving into more
+   R. Maurya et al. MLP + LSTM + SVM          Random flipping,       Cotton          1041,316     98.43 %                                   needs to be           advanced quantization
+                                                                                                                                            improved.             techniques or utilising a
+   [33]                                       random rotation,       Maize                        94.27 %                                                         combination of
+                                                                                                                                            The model's           quantization with
+                                              resizing, width-       PlantVillage-                97.45 %                                   generalizability is   pruning or knowledge
+                                                                                                                                            not tested.           distillation, the model
+                                              and zooming            Tomato/                                                                                      can be further
+                                                                                                                                            Generalizability of   optimised.
+                                                                     Potato/                                                                the model is not      Future directions may
+                                                                                                                                            evaluated on other    include testing the
+                                                                     Pepper                                                                 datasets              model on more complex
+                                                                                                                                                                  datasets to test its
+   Dheeraj et al.  DenseNet121                -                      PlantVillage    1.5 million  99.37 %     -          -                                        generalizability. Models   Current Plant Biology 42 (2025) 100459
+                                                                                                                                                                  performance needs to be
+   [34]                                                                                                                                                           evaluated on different
+                                                                                                                                                                  metrics.
+   Assaduzzaman    EfficientNetB0 + SE        Resizing, scaling,     PlantVillage - -             99.11 %     99 %       99 %                                     The model size is 13.8
+     et al. [35]   module                     horizontal flip,       Tomato                                                                                       MB. Future work could
+                                              random rotation,                                                                                                    focus on further
+                                              color jittering                                                                                                     reducing the model size
+                                                                                                                                                                  and computational
+                                                                                                                                                                  requirements while also
+                                                                                                                                                                  maintaining accuracy.
+                                                                                                                                                                  Future studies can
+                                                                                                                                                                  further improve the
+                                                                                                                                                                  proposed model
+                                                                                                                                                                  validation accuracy,
+
+                                                                                                                                                                  (continued on next page)
+                                                                                                                                                                              S. Duhan et al.
+
+   Table 1 (continued )
+
+   Authors         Technique          Data Pre-           Dataset used  Model        Accuracy  Precision  Recall   F1-Score  Limitations            Future Scope
+                                      processing                        Parameters             96.88 %    96.72 %  96.80 %
+
+   Thai & Le, [36] CNN + Transformer  Resizing            PlantVillage  9.2 million  -                             80.9 %    The model's            which currently stands
+                                                                                                                   95 %      performance may be     at 98.88 %.
+                                                          (subset)                                                           affected by varying    Future research could
+                                                                                                                             lighting conditions,   focus on improving
+   Li et al. [37]  Yolov8n + ATA      Rotation, scaling,  ATZD01        2.79million            87.1 %     75.6 %             complex                robustness through
+                                      cropping, and       ­Public                                                            backgrounds, and       dataset diversification
+                                      flipping            Apricot                                                            hardware
+                                                          dataset                                                            compatibility across   Future research should
+                                                                                                                             diverse devices        focus on further
+5                                                                                                                            APNet's detection      optimizing
+                                                                                                                             accuracy can still be  computational
+   Joshi et al.    Yolov8n            Resizing, rotation, PlantDoc ­                           97.75 %    93.84 %            influenced by          efficiency and
+     [38]                                                                                                                    extreme                extending its
+                                      flipping,           Tomato                                                             environmental          application to other
+                                                                                                                             variations, such as    crops.
+                                      saturation,                                                                            highly occluded        Extending the approach
+                                                                                                                             scenes                 to other crops and
+                                      Gaussian Blur, and                                                                     Generalizability of    diseases by training on
+                                                                                                                             the model is not       diverse datasets can
+                                                                                                                             evaluated on other     enhance the model's
+                                                                                                                             datasets               versatility in precision
+                                                                                                                                                    agriculture.
+                                      Noise addition
+
+                                                                                                                                                                              Current Plant Biology 42 (2025) 100459
+S. Duhan et al.                                                                                                                                   Current Plant Biology 42 (2025) 100459
+
+emphasizes the significant areas in the image of plant disease using            disease stages. Similarly, while beneficial for diagnosis of corn diseases,
+several convolutional layers with the pyramidal squeezed attention              topologies like the modified MobileNetV2 in [24] increase model
+(PSA) mechanism. Rakib et al. [32] proposed a lightweight and                   complexity, making deployment on devices with limited resources less
+energy-efficient system for plant disease identification that uses a            feasible. Furthermore, whereas attention techniques such as SENet [40]
+quantized convolutional neural network (Q-CNN). The system is run on            and CBAM [27] are integrated for feature enhancement in numerous
+an ESP32-CAM IoT module. The CNN model is quantized to int8 format              research [21,28,31], they frequently do so without replacing computa-
+in order to reduce computational demand. The quantized model size is            tionally expensive layers, which is something we address in proposed
+only 28 KB, and contains only 26,151 parameters.                                solution. Additionally, current models are not validated across a variety
+                                                                                of environmental circumstances, which is necessary for real-world ap-
+    R. Maurya et al., [33] suggested approach uses a combination of             plications. In contrast, our suggested model, RTR_Lite_MobileNet, uses
+MLP-Mixer and Long Short-Term Memory (LSTM) models to attain a                  sophisticated attention mechanisms like Triplet Attention, SENet, and
+high classification performance while minimizing computational de-              ECA to replace more computationally demanding layers while simulta-
+mands. Sequential data is handled in a very efficient manner by LSTM            neously integrating them to capture complex information. By addressing
+models, which excel in capturing long-range dependencies. The system            significant shortcomings in the generalizability and flexibility of current
+uses features that are derived from pre-trained CNN models, including           models, this strategy aims to maximize efficiency and performance over
+MobileNet, DenseNet121, DenseNet169, and DenseNet201. In last, SVM              a larger range of crops and climatic conditions.
+is utilized for classification tasks. Dheeraj et al. [34] put forward the
+LWDN (Lightweight DenseNet) model for the diagnosis of plant diseases.          2. Materials and methods
+The LWDN model is simply the DenseNet121 model that has been
+trimmed down and concatenated so that it maintain the same accuracy                 For effectively identifying the plant disease and addressing the
+but has lower computational requirements. During training, the model            challenges of the generalizability of the model, large model size and
+use feature fusion, transfer learning, and partial layer freezing               reducing the numbers of trainable parameters, this study propose
+approaches.                                                                     Attention-fused residual lite MobileNetV2 model (RTR_Lite_MobileNet).
+                                                                                This section explain the various techniques utilized in creating the
+    The Triplet Attention Mechanism (TAM) [39] has not been used as             proposed solution.
+frequently in recent studies as SENet [40] and CBAM [27] mechanisms;
+only a few studies have included TAM in their proposed models. Li et al.        2.1. Modified squeeze and excitation (SENet) module
+[41] utilised the TAM to enhance the Yolov5 model's performance in
+detecting marine organisms. For this, they added the TAM module in the              Hu et al. [40] proposed the Squeeze-and-Excitation (SE) block to
+neck of the Yolov5 model to improve the model's feature extraction              improve the quality of representations produced by a network. They
+ability in capturing cross-dimensional interactions. The authors also           explicitly model the interdependencies among the channels of the net-
+looked at other cutting-edge attention modules, such as SENet and               work's convolutional features. The core idea of an SE Block is to assign
+CBAM. However, triplet attention performed better than SENet and                different weights to each channel based on its significance. It recali-
+CBAM, showing a 1.3 % increase in mean average percision (mAP). To              brates feature maps by explicitly modelling channel interactions and
+address the problem of detecting small targets in infrared ocean ship           dependencies. It is widely utilized in studies [43], [44,45] for effective
+photos, the Ye et al., [42] presented a modified YOLOv5 model that              extract of relevant features. In the original SENet, input features are first
+includes a high-resolution P2 feature layer and a TAM. The P2 layer             passed through an adaptive average pooling layer, then flattened before
+gathers detailed, low-level characteristics required for small target           passing it to sequential layers. But in the modified SENet, input features
+recognition, but it also generates noise. To remedy this, the TA module is      are parallelly passed through an adaptive average pooling and max
+embedded into residual blocks of the backbone network, giving addi-             pooling layer. The outputs from both the layers are then combined
+tional weight to effective features while suppressing noisy ones. The           element-wise, and the resulting output follows the same process as
+incorporation of TA improves performance significantly, with greater            original SENet, as shown in Fig. 1.
+average precision and recall rates across various target scales. In study
+[35], a proposed lightweight model named XSE-TomatoNet, which uses              2.2. Efficient channel attention (ECA) module
+EfficientNetB0 as a backbone network to extract features at various
+scales, and SE module with pooling layer is also added in the network.              This study also incorporated the Efficient Channel Attention (ECA)
+The final classification is achieved by combining recalibrated features         module [46]. ECA's motivation stems from recognizing that not all
+through fully connected layers with a softmax activation function. The          channels in feature maps contribute equally to the task. Some channels
+MobileH-Transformer model, a novel hybrid framework that combines               may capture more discriminative information, while others may contain
+CNN and Transformer, is proposed in study [36]. In order to improve             noise or redundancy. By selectively attending to informative channels,
+classification accuracy and lower computing requirements, the CNN               the network enhances its discriminative power and generalization
+component uses both conventional convolutional layers and a new dual            ability. ECA introduces a lightweight channel attention mechanism that
+convolutional block to extract highly relevant, multi-level local features.     directly operates on the channel dimension of feature maps.
+The transformer encoder processes refined feature maps with minimal
+attention layers to capture global dependencies efficiently. Study [37]             Unlike other attention mechanisms involving costly operations like
+propose APNet, a lightweight deep-learning framework, that integrates           matrix multiplications, ECA employs a simple yet effective 1D con-
+the Adaptive Threshold Algorithm (ATA) for dynamic threshold                    volutional operation along the channel dimension to capture channel-
+adjustment and DyHead for multi-scale feature aggregation. The                  wise dependencies as shown in Fig. 2. This utilization of 1D convolu-
+ApNeck module combines shallow and deep feature integration to                  tional operations ensures minimal computational overhead compared to
+handle complex environments with small or overlapping targets. In               more complex attention mechanisms such as self-attention, making ECA
+study [38], the YOLOv8n model is optimized using AdamW as the                   suitable for real-time applications and scenarios with limited computa-
+optimizer and pretrained weights; the model effectively detected tomato         tion resources.
+diseases in the augmented dataset.
+                                                                                2.3. RES_Block
+    Even though earlier research has made great progress in creating
+lightweight models for plant disease detection, a number of restrictions            In this study, residual attention module (RES_Block), is proposed. In
+prevent them from being directly applied to more extensive agricultural         RES_Block, modified SENet module is used, followed by the ECA
+applications. The generalizability of models such as CAS-CNN [22] and
+study [23] is limited by their narrow focus on certain crop types or
+
+                                                                             6
+S. Duhan et al.                                                                                                                                  Current Plant Biology 42 (2025) 100459
+                                        Fig. 1. Illustrate of Modified SENet Module.
+
+                                        Fig. 2. Illustrate of the Efficient Channel Attention mechanism.
+
+module, as depicted in Fig. 3. The SENet module focuses on channel          and processing the input tensor (×) of dimension C x H x W, where C
+dependencies. It involves a squeeze operation (global average pooling)      represents the channel information, H and W represent the height and
+succeeded by two fully-connected (FC) layers. The initial FC layer cap-     width of the input tensor respectively as illustrated in Fig. 4. For each
+tures dependencies between channels, while the subsequent layer gen-        branch, the input tensor is rotated and then subjected to Z-pooling. This
+erates weights for each channel. These weights are utilized to adjust the   pooling technique reduces the size of the tensor by combining the
+original feature map, highlighting significant channels.                    average pooled and max pooled features across the first dimension.
+                                                                            Subsequently, a sequence of procedures is executed to produce attention
+    By integrating SENet modules, the network adapts channel-wise in-       weights. This involves the use of convolutional layer, followed by batch
+formation flow, leading to better feature representation. The ECA           normalisation and the use of the sigmoid activation function. These
+module enhances feature representations by selectively emphasizing          branches operate in the following way:
+informative channels. Specifically, it computes channel-wise attention
+weights based on the global context of each channel. The residual               First Branch: Explores the correlation between the H, and C di-
+network is used to highlight the benefits of improved feature represen-     mensions. Initially, the input tensor × is rotated 90 anti-clockwise
+tation, leading to enhanced accuracy and robustness. The RES_Block is       along the H dimension. This rotation gives us a new tensor ×1 with
+as defined in Eq. (1).                                                      dimension W x H x C. After performing Z-pooling, ×1 is transformed to a
+                                                                            size of (2 x H x C). Following that, a convolution operation is performed,
+RES_Block = x  ECA_Attention(SENet(x))  (1)                                 succeeded by batch normalisation and sigmoid activation to determine
+                                                                            attention weights. These weights highlight the important features in ×1.
+2.4. Triplet attention                                                      The generated weights are then applied to ×1 and then 90 clockwise
+                                                                            rotation is performed along the H axis to preserve the original shape of
+    Triplet Attention that is proposed in study [39], is a lightweight and  × . The Eq. (2) represents the operation of the first branch:
+effective attention mechanism that captures cross-dimensional in-
+teractions with minimal computational overhead. Previous attention          y1 = ×1  ((z(×1) ))                         (2)
+mechanisms, such as SENet [40] and CBAM [27], did not consider in-
+teractions between spatial and channel dimensions, which could limit        Where, z represent the Z-pooling layer, where  represents the convo-
+attention effectiveness. They also add significant computational            lution operation with a kernel size of k, and is followed by batch
+complexity and learnable parameters. Triplet Attention is designed to       normalization. Sigmoid operation is represented by symbol (),
+capture interactions across different dimensions of input tensors (height,   represent element wise multiplication and the vinculum symbol rep-
+width, and channel). Triplet attention mechanism utilizes three             resents the 90-clockwise rotation.
+branches that are used to calculate the attention weights by permuting
+                                                                                Second Branch: Explores the correlation between the W and C di-
+
+                        Fig. 3. Illustration of the proposed RES_Block, which has two blocks: SENet and ECA_Attention.
+                                                                                                7
+S. Duhan et al.                                                                  Current Plant Biology 42 (2025) 100459
+
+                      Fig. 4. Illustration of the Triplet Attention Module [39] and more details can be found in Section 2.4.
+
+mensions. For this, the input tensor × is rotated 90 anti-clockwise along        feature extraction. It is ideal for deployment on mobile and embedded
+the W dimension, resulting in the output tensor ×2 (H x C x W). Then, Z-         devices with constrained memory and processing capacity because of its
+pooling is done, resulting in a different output tensor of shape (2 x C x        depthwise separable convolutions, which further minimize model size
+W), followed by the same processing steps as the first branch. The Eq. (3)       and computational cost [13]. For instance, Google adopted Mobile-
+represents the operation of the second branch:                                   NetV2 as the backbone for the SSD [49] detector, replacing VGG16 to
+                                                                                 improve inference speed and efficiency by factorizing convolutions into
+y2 = ×2  ((z(×2) ))   (3)                                                        depthwise and pointwise operations. More current systems, such as
+                                                                                 ShuffleNetV3 and MobileNetV3, are better but still have issues. Neural
+    Third Branch: Explores the correlation between the H and W di-               architecture search (NAS) is used by MobileNetV3 to increase accuracy;
+mensions. It's Apply Z-pool directly to input tensor × , which result in         nevertheless, because it must be appropriately adjusted for unbalanced
+output tensor (2 x H x W), followed by the same processing steps as the          or diverse datasets, its flexibility may be constrained [50]. Shuf-
+first branch. The Eq. (4) represents the operation of the third branch:          fleNetV3, although efficient with its channel shuffle mechanism, can
+                                                                                 struggle with intricate pattern recognition in complex datasets, partic-
+y3 = ×  ((z( × ) ))   (4)                                                        ularly in tasks requiring high-resolution image analysis [14]. These
+                                                                                 constraints emphasize the necessity of choosing models that achieve a
+    At last, final attention-applied tensor is calculated by aggregating the     balance between computational efficiency and robust feature extraction
+outputs of the three branches through simple averaging, as shown in Eq.          abilities, while also meeting particular application needs. MobileNetV2
+(5):                                                                             has shown adaptability across numerous applications, rendering it
+                                                                                 especially useful in resource-limited settings often found in agriculture.
+y = 13(y1 + y2 + y3)  (5)                                                        The extensive use for identifying plant diseases arises from this adapt-
+                                                                                 ability. In the study [25] MobileNetV2 classification accuracy is
+    In study [41], triplet attention is used to increase Yolov5 perfor-          improved by combining it with the Xception model. Study [20] com-
+mance; in study [42], triplet attention is utilized to minimize noise and        bines MobileNetV2 with Inception modules to gather multi-scale infor-
+improve the Yolov5 model's feature extraction capabilities. Using triplet        mation to detect complex disease patterns. To improve MobileNetV2's
+attention enables models to capture dependencies across height, width,           discriminative abilities for classifying maize diseases, the study [24]
+and channels, resulting in a more robust feature representation. How-            included pooling and dense layers. These studies highlight Mobile-
+ever, it adds convolutional operations, which may increase computa-              NetV2's adaptability in achieving high accuracy while addressing
+tional complexity and memory utilization. This may slow training and             practical challenges such as limited memory, low processing power, and
+inference. The effectiveness of Triplet Attention can be influenced by the       the need for real-time performance.
+hyperparameter choices, such as the number of convolutional filters and
+kernel sizes used in the attention module. Using Triplet attention in any            MobileNetV2 provides an efficient backbone that supports modifi-
+architecture may require thorough tuning and debugging to achieve                cations, such as the integration of attention mechanisms and layer ad-
+optimal efficiency.                                                              justments, to create a lightweight, refined variant with minimal trade-
+                                                                                 offs in accuracy. This approach maintains an optimized balance be-
+2.5. RTR_Lite_MobileNet                                                          tween computational efficiency and classification accuracy, with its
+                                                                                 architecture details shown in Fig. 5(a).
+    MobileNetV2 has emerged as the preferred method for image pro-
+cessing and classification tasks, particularly when computational effi-              To enhance feature extraction and classification capabilities, atten-
+cacy is crucial. In comparison to more complex and computationally               tion mechanisms like Triplet Attention, SENet, and ECA were imple-
+extensive networks like AlexNet [47], VGG16, InceptionV3 [48], and               mented due to their complementary and distinctive characteristics.
+ResNet, MobileNetV2 uses a linear bottleneck and an inverted residual            Triplet Attention captures spatial and channel-wise dependencies across
+structure to enhance convolutional processes and maintain reliable               multiple axes, ensuring accurate recognition of complicated patterns.
+
+                                                                              8
+S. Duhan et al.                                                                Current Plant Biology 42 (2025) 100459
+
+Fig. 5. Block representation of model architectures: (a) Standard MobileNetV2 architecture and (b) Proposed RTR_Lite_MobileNet architecture, highlighting the
+integration of advanced attention mechanisms.
+
+SENet adjusts channel-wise feature responses to prioritize key features,       3. Results
+while ECA enhances local cross-channel interaction with low computa-
+tional cost, making it ideal for resource-constrained devices.The pro-             The RTR_Lite_MobileNet model performance is evaluated by utilizing
+posed model, as shown in Fig. 5(b), modifies the initial layer by              seven publicly available plant disease datasets. To finalize the structure
+introducing Triplet Attention and a proposed RES_Block after the first         of the proposed model, various experiments are conducted, and model
+convolution layer of the standard MobileNetV2. The introduction of             performance is evaluated against various metrics. The following sections
+Triplet Attention at this stage is crucial because it enhances the model's     contain details regarding the datasets, evaluation measures, experi-
+ability to capture cross-dimensional interactions (between height,             mental setup, and performance results obtained during the experimen-
+width, and channels) early in the network, thereby improving the               tation. Furthermore, the suggested model's explainability is assessed
+quality of the extracted features. The RES_Block is added to provide           using gradient-weighted class activation maps (Grad-CAMs) [51].
+residual connections that help maintain gradient flow, mitigate the
+vanishing gradient problem, and ensure better feature propagation              3.1. Dataset and data prepressing
+through the network. In the proposed model, the last three layers,
+excluding the classifier layers, are removed. This reduces the model's             To enhance data diversity and model robustness, this study utilizes
+parameter count, minimizing both computational cost and memory                 seven publicly available datasets, namely Plant Disease Dataset [52],
+required for deployment. This makes the model more applicable to               Coffee [53], Wheat [54], Soybean [55], Sugarcane [56], PlantDoc [57],
+deploy on devices with limited resources. To compensate for the                and PaddyDoctor [58], containing images of various crops and diseases
+removal of these layers and enhance the model's capacity to learn rich         from different geographical regions. With great diversity in size and
+features, new modules are introduced in their place These modules              classification distribution, these databases cover a wide range of crops,
+comprise a RES_Block, Triplet Attention, and another RES_Block. The            diseases, and geographical areas. The datasets consist of the smaller,
+reason for this particular arrangement is to switch between improving          balanced Sugarcane dataset with 100 images across three classes and the
+spatial and channel-level attention (via Triplet Attention) and main-          large, imbalanced Plant Disease dataset [52] with 61,486 images over
+taining features quality and gradient flow (via RES_Block). The RES_-          39 classes. This variety in size and composition helps the model to learn
+Block enables the model's ability to learn and forward-pass the features,      from many agricultural settings, disease patterns, and crop varieties,
+while Triplet Attention ensures that the model can dynamically focus on        hence improving its generalization and adaptability. All images were
+important features across different dimensions of the input. These blocks      resized to 224 × 224 pixels to ensure consistency during training. The
+are repeated twice in the proposed model to ensure that the benefits of        datasets were divided into training, validation, and testing sets in an
+both Triplet Attention and RES_Block are compounded, providing a               8:1:1 ratio, facilitating a comprehensive evaluation of the model across
+deeper and more robust feature extraction mechanism. This results in           diverse scenarios while helping to mitigate overfitting.
+improved accuracy while keeping the model lightweight and efficient.
+The original MobileNetV2 model has 2273,831 total parameters and a                 Many augmentation approaches were utilized to address class im-
+model size of 8.69MB; the proposed model has 1050,547parameters and            balances and increase dataset diversity. These included random rota-
+a model size of 4.01MB, and thus proposed model reduces the trainable          tions of up to 30 degrees to simulate different observation angles, color
+parameters count and model size by 53.8 %.                                     jittering to adjust brightness, contrast, saturation, and hue to improve
+                                                                               resistance against lighting variations, and random horizontal flipping to
+                                                                               account for orientation variability. Incorporating scaling, shearing, and
+                                                                               translations, these random affine transformations further enhance the
+                                                                               spatial variety of the datasets. These augmentation methods were
+
+                                                                            9
+S. Duhan et al.                                                                                                       Current Plant Biology 42 (2025) 100459
+
+iteratively applied on underrepresented classes until their image counts      model's ability to correctly predict the negative class as negative, FP
+matched the largest class, therefore guaranteeing balanced datasets.          depicts the case when the model wrongly predicts an instance as posi-
+Given its already balanced class distribution, the Sugarcane dataset did      tive, and FN depicts the case when the model categorizes the instance as
+not require augmentation. Fig. 6 illustrates the class distributions of the   negative when the instance is actually positive [59]. These measures are
+datasets before and after augmentation. For each dataset, the class           computed as follows:
+indexing displayed in the images is consistently used in the confusion
+matrices.                                                                     Accuracy    =  TP  +  TP  +  TN  +  FN  (6)
+                                                                                                    FP  +  TN
+    Fig. 7 showcases sample images from the datasets used in this study,
+highlighting the diversity of crop types, disease manifestations, and         Precision =       TP                    (7)
+image characteristics. The PlantDoc dataset was specifically incorpo-                        TP + FP
+rated to evaluate the model's robustness in difficult scenarios, featuring
+real-world images that encompass background noise, occlusion, and             Recall  =     TP                        (8)
+varying lighting conditions. This study leverages multiple publicly                      TP + FN
+available datasets, many of which include images captured in real-world
+agricultural settings, providing a foundation for evaluating the model's      F1Score =      2  Precision  Recall     (9)
+performance under practical conditions. However, despite this diversity,                      Precision + Recall
+further validation through extensive field trials is essential to ensure
+robustness across varying environmental and agricultural scenarios.               The ROC curve covers is known as the Area under the curve, or AUC.
+Future research will focus on real-life field testing to enhance the          Plotting the true positive rate (TPR) (refer Eq. 10) and false positive rate
+model's applicability and reliability in dynamic agricultural                 (FPR) (refer Eq. 11) yields the ROC.
+environments.
+                                                                              TPR  =  TP  TP                          (10)
+3.2. Evaluation metrics                                                                   + FN
+
+    The performance of the model is assessed using commonly used              FPR =         FP                        (11)
+classification metrics, such as accuracy (Eq. 6), precision (Eq. 7), recall              FP + TN
+(Eq. 8), F1-score (Eq. 9), Area under the Receiver Operating Curve
+(ROC), and Cohen's kappa score. In evaluating classification techniques,          Cohen's kappa is a statistical measure that assesses the degree of
+it is essential to have a precise understanding of True Positive (TP), True   agreement between two raters or evaluators, surpassing what might be
+Negative (TN), False Positive (FP), and False Negative (FN). These terms      anticipated by random chance. This approach is especially valuable for
+represent the different outcomes of a classification model: TP depicts the    assessing the consistency among different raters in classification tasks.
+ability of the model to predict a positive class as positive, TN depicts the  In machine learning, Cohen's kappa can be used to rate how well a
+                                                                              classification model works by treating the real labels and the model's
+                                                                              predictions as two different raters. The kappa statistic is represented in
+
+Fig. 6. Class-wise distribution of images across all datasets before and after augmentation.
+                                                                   10
+S. Duhan et al.                                                                                                    Current Plant Biology 42 (2025) 100459
+
+Fig. 7. Sample Images from the Datasets (a) Plant Disease Dataset [52]; (b) Coffee [53]; (c) Wheat [54]; (d) Soybean [55]; (e) Sugarcane [56]; (f) PlantDoc Dataset
+[57]; (g) PaddyDoctor [58].
+
+Eq. 12.                                                                         platform. The experiments were carried out on an NVIDIA GeForce GTX
+                                                                                1080 Ti utilizing Driver Version 550.90.07 and CUDA Version 12.4. The
+kappa =   (po -        pe )                                         (12)        memory capacity of the GPU was 11264MiB. Training was conducted for
+         (1 -           pe)                                                     30 epochs using a batch size of 32. Various optimizers, such as Adam
+                                                                                with an initial learning rate of 0.001, were employed. The Cross-
+    Here, po refers to the observed agreement probability, and pe is the        EntropyLoss function was used as the loss function. For improved
+expected agreement probability.                                                 training efficiency, a learning rate decay of 10 % was implemented
+                                                                                every 5 epochs.
+    Each metric gives a distinct perspective of how well the model is
+doing. Although accuracy is a prominent metric, it can be misleading in         3.4. Comparative analysis with state-of-art models
+the case of imbalanced datasets since it may overlook correct predictions
+in minority classes. The precision and recall metrics are critical for              To evaluate the model performance against other models, the Plant
+assessing the model's performance in terms of FP and FN. The F1-score,          Disease Dataset [52] is used. Table 2 presents a comprehensive com-
+determined as the harmonic mean of precision and recall, plays a vital          parison between different pretrained models like ResNet101 [8], Effi-
+role in handling imbalanced datasets by effectively balancing these two         cientNet [60], ShuffleNetV2 [14], ViT_B_16 [61], MobileNetV2 [13],
+metrics. The AUC assesses how well the model can distinguish between            MobileNetV3 [50] and RTR_Lite_MobileNet.
+different classes at various thresholds, which makes it useful for both
+binary and multi-class situations. Finally, Cohen's kappa evaluates the             Table 2 presents a performance comparison of parameters such as
+correlation between the model's predictions and the true labels, taking         computational efficiency, model size, and prediction accuracy of various
+into consideration the possibility of chance agreement and offering a           architectures, including the proposed RTR_Lite_MobileNet. The visuali-
+more detailed measure of reliability.                                           zation of the model's performance on the test dataset is presented in
+                                                                                Fig. 8. As shown in Fig. 8, the proposed model outperforms other models
+3.3. Experiment setup                                                           in all metrics considered.
+
+    The study utilized the CUDA Toolkit version 12.4 and the PyTorch                The RTR_Lite_MobileNet outperforms all the mentioned models in
+deep learning framework. With Python 3.10.13 as the main program-               terms of accuracy, including MobileNetV3 (99.80 %), ResNet101
+ming language, Jupyter Notebook was utilized as the development                 (99.69 %), and EfficientNet_V2_S (99.82 %). Moreover, the training loss
+
+Table 2
+Performance comparison of various Models on Plant Disease Dataset.
+
+Model                  Model Size (in  Total Trainable              Loss    Accuracy  Precision  Recall   F1-      AUC- Score  Kappa    GFLOPS
+                                                                                                          score                Score
+                       MB)             parameters                           99.69 %   99.62 %    99.64 %            99.98 %             15.72
+                                                                            99.82 %   99.74 %    99.77 %  99.63 %  100.00 %    99.68 %  35.22
+ResNet101 [8]          162.43          42,580,071                   0.0194                                99.75 %              99.81 %
+EfficientNet_V2_S       77.16          20,227,447                   0.0083  99.80 %   99.78 %    99.73 %           100.00 %              0.745
+                                                                            99.72 %   99.65 %    99.62 %  99.75 %  100.00 %    99.80 %   0.0876
+  [56]                  13.05          3,420,967                    0.0091  99.77 %   99.72 %    99.73 %  99.63 %  100.00 %    99.71 %  35.22
+EfficientNetlite [60]     4.93         1,293,579                    0.0118  99.66 %   99.55 %    99.53 %  99.72 %  100.00 %    99.76 %   0.638
+ShuffleNet_V2 [14]                     86,567,656                   0.0100  99.80 %   99.80 %    99.79 %  99.53 %  100.00 %    99.64 %   0.12
+ViT_B_16 [57]          328             2,273,831                    0.0139  99.89 %   99.87 %    99.85 %  99.80 %  100.00 %    99.83 %   0.526
+MobileNetV2 [13]          8.69         1,528,106                    2.7094                                99.86 %              99.88 %
+MobileNetV3 [50]          3.1          1,050,547                    0.0054
+RTR_Lite_MobileNet        4.01
+
+                                                                            11
+S. Duhan et al.                                                                                                   Current Plant Biology 42 (2025) 100459
+
+                                          Fig. 8. Model's performance on Test dataset of Plant Disease Dataset.
+
+achieved by the proposed model is lowest among all (0.0054), indicating         ResNet101 (15.72 GFLOPs) attain competitive accuracy, their signifi-
+better optimization and training convergence. Impressive statistics show        cantly higher computational costs make them less useful in situations
+that classification was highly accurate, with very few false positives and      with limited resources.
+negatives: an F1-score of 99.86 %, precision of 99.87 %, and recall of
+99.85 %. Although Cohen's Kappa score reached 99.88 %, indicating                   Compared to RTR_Lite_MobileNet, MobileNetV3 (0.12 GFLOPs) and
+near-perfect agreement between predictions and actual labels, the               ShuffleNet_V2 (0.0876 GFLOPs) exhibit lower FLOPs count, indicating
+100 % AUC score validates the model's ability to identify the diseases          low computational complexity. However, the classification accuracy
+with high accuracy. An important metric for assessing computational             and robustness of the proposed model consistently outperform current
+efficiency is the FLOP count, which measures the floating-point opera-          models across several criteria, particularly in real-world situations
+tions required during inference. The compact model size of 4.01 MB and          where balanced performance is necessary. RTR_Lite_MobileNet's archi-
+a FLOP count of 0.526 GFLOPs highlight the efficient architecture of            tectural improvements significantly enhance performance metrics such
+RTR_Lite_MobileNet, making it ideal for deployment on low-power de-             as accuracy, precision, and recall, making the trade-off in computational
+vices. Even when larger models like ViT_B_16 (35.22 GFLOPs) and                 complexity justifiable despite having more FLOPs than MobileNetV3
+                                                                                and ShuffleNet_V2. Future developments in model architecture may
+
+Table 3
+Performance Comparison of the RTR_Lite_MobileNet with the Standard MobileNetV2 Model [13] on Different Datasets.
+
+Dataset                Augmentation       Model               Parameters Loss       Accuracy Precision Recall     F1_score  Roc Curve  Kappa
+                                                                                                                                       Score
+Plant Disease Dataset  Without            MobileNetV2         2273,831      0.0139  99.66 %  99.55 %  99.53 %     99.53 %   100.00 %
+  [52]                 Augmentation       RTR_Lite_MobileNet  1050,547      0.0054  99.89 %  99.87 %  99.85 %     99.86 %   100.00 %   99.64 %
+                       With Augmentation  MobileNetV2         2,273,831     0.0033  99.87 %  99.87 %  99.87 %     99.87 %   100.00 %   99.88 %
+Coffee [53]                               RTR_Lite_MobileNet  1,050,547     0.0032  99.92 %  99.92 %  99.92 %     99.92 %   100.00 %   99.87 %
+                       Without            MobileNetV2         2,227,715     0.3954  88.00 %  80.15 %  82.82 %     80.92 %   94.40 %    99.92 %
+Wheat [54]             Augmentation       RTR_Lite_MobileNet  1,044,751     0.4007  89.00 %  81.23 %  80.98 %     81.04 %   94.72 %    79.62 %
+                       With Augmentation  MobileNetV2         2,227,715     0.3952  88.55 %  87.96 %  87.74 %     87.79 %   95.93 %    81.01 %
+Soybean                                   RTR_Lite_MobileNet  1044,751      0.3858  90.84 %  90.26 %  90.32 %     90.23 %   95.50 %    82.64 %
+  [55]                 Without            MobileNetV2         2,227,715     0.0496  97.62 %  96.30 %  98.55 %     97.30 %   99.92 %    86.14 %
+                       Augmentation       RTR_Lite_MobileNet  1,032,003     0.0594  97.62 %  98.48 %  97.62 %     97.99 %   100.00 %   96.06 %
+Sugarcane [56]         With Augmentation  MobileNetV2         2,227,715     0.0252  98.41 %  97.62 %  98.25 %     97.86 %   99.80 %    96.08 %
+                                          RTR_Lite_MobileNet  1,032,003     0.0167  100 %    100 %    100 %       100 %     100 %      97.46 %
+PlantDoc Dataset [57]  Without            MobileNetV2         2,227,715     0.3003  92.04 %  90.68 %  91.81 %     91.22 %   98.46 %    100 %
+                       Augmentation       RTR_Lite_MobileNet  1,044,751     0.2834  94.07 %  93.10 %  94.61 %     93.82 %   98.67 %    86.56 %
+PaddyDoctor [58]       With Augmentation  MobileNetV2         2,227,715     0.1711  95.88 %  95.85 %  95.83 %     95.83 %   99.28 %    89.99 %
+                                          RTR_Lite_MobileNet  1,044,751     0.1243  96.78 %  96.78 %  96.73 %     96.75 %   99.48 %    93.80 %
+                       Without            MobileNetV2         2,227,715     0.1222  93.33 %  93.33 %  93.73 %     93.00 %   99.54 %    95.16 %
+                       Augmentation       RTR_Lite_MobileNet  1,032,003     0.2260  96.67 %  94.44 %  96.67 %     95.22 %   98.63 %    89.86 %
+                       With Augmentation  MobileNetV2         -             -       -        -        -           -         -          94.59 %
+                                          RTR_Lite_MobileNet  -             -       -        -        -           -         -          -
+                       Without            MobileNetV2         2,259,740     1.2854  61.24 %  60.94 %  59.87 %     59.17 %   95.82 %    -
+                       Augmentation       RTR_Lite_MobileNet  1,048,776     1.1796  64.73 %  65.26 %  62.88 %     62.82 %   96.10 %    59.58 %
+                       With Augmentation  MobileNetV2         2,259,740     0.8157  78.48 %  78.40 %  78,19 %     77.96 %   98.55 %    63.18 %
+                                          RTR_Lite_MobileNet  1,048,776     0.6416  82.00 %  82.31 %  81.55 %     81.42 %   98.98 %    77.65 %
+                       Without            MobileNetV2         2,236,682     0.1636  96.45 %  96.76 %  95.57 %     96.13 %   99.76 %    81.32 %
+                       Augmentation       RTR_Lite_MobileNet  1,045,878     0.1110  96.92 %  96.61 %  96.24 %     96,42 %   99.64 %    95.93 %
+                       With Augmentation  MobileNetV2         2,236,682     0.1242  96.43 %  96.51 %  96.43 %     96.45 %   99.89 %    96.47 %
+                                          RTR_Lite_MobileNet  1,045,878     0.1025  97.11 %  97.16 %  97.11 %     97.12 %   99.88 %    96.03 %
+                                                                                                                                       96.79 %
+
+(-) indicate augmentation not applied
+
+                                                                            12
+S. Duhan et al.                                                                                                                                  Current Plant Biology 42 (2025) 100459
+
+focus on reducing the FLOP count without compromising accuracy,                balanced datasets. Metrics like recall (96.67 %), precision (94.44 %),
+enabling even more efficient deployment on ultra-low-power com-                and F1-score (95.22 %) demonstrate its effective prediction balance.
+puters. Such advancements will expand the model's utility in real-time         Fig. 9(e) illustrates the model's rapid convergence and consistently low
+agricultural scenarios, where precise and computationally efficient            loss values.
+plant disease identification is crucial.
+                                                                                   The PlantDoc dataset [57] presents a unique challenge as it includes
+3.5. Test of generalizability                                                  a variety of real-world photos. RTR_Lite_MobileNet achieves 64.73 %
+                                                                               accuracy without augmentation, 5.69 % higher than MobileNetV2's
+    Seven datasets discussed in Section 3.1 were used to evaluate the          61.24 %. With augmentation, accuracy increases dramatically to
+performance and robustness of the proposed RTR_Lite_MobileNet model            82.00 %, compared to MobileNetV2's 78.48 %. The loss reduction from
+in various scenarios. The model's effectiveness, with and without data         1.1796 to 0.6416 demonstrates its capacity to handle variations such as
+augmentation, was compared to the standard MobileNetV2 model to                lighting and occlusion. Fig. 9(f) shows the significant impact of
+assess improvements in accuracy, loss, and prediction reliability. The         augmentation, as both accuracy and loss metrics improve substantially
+results are presented in Table 3.                                              with RTR_Lite_MobileNet outperforming MobileNetV2 across all epochs.
+                                                                               On the PaddyDoctor dataset [58], RTR_Lite_MobileNet surpasses Mobi-
+    The findings in Table 3 demonstrate the suggested RTR_Lite_Mobi-           leNetV2, achieving an accuracy of 96.92 % without augmentation.
+leNet model's higher performance in terms of accuracy, loss, and other         RTR_Lite_MobileNet with augmentation achieves an accuracy rate of
+evaluation criteria, while preserving a lightweight architecture with          97.11 %, illustrating its exceptional precision. With the model's loss
+fewer parameters, making it suitable for resource-constrained applica-         reduced to 0.1110, the reliability of predictions. The model's strength is
+tions. The corresponding training and validation accuracy, along with          evidenced by metrics such as F1-score (96.42 %), recall (96.61 %), and
+the loss values for augmented and non-augmented data, are visually             precision (96.48 %). Despite a 53.23 % reduction in parameters,
+represented in Fig. 9.                                                         RTR_Lite_MobileNet retains its computational efficiency. Fig. 9(g)
+                                                                               highlights how the model achieves stable and consistent performance
+    In the Plant Disease Dataset [52], RTR_Lite_MobileNet outperforms          across epochs, with augmentation further enhancing accuracy and
+MobileNetV2 by 0.23 %, attains an outstanding accuracy of 99.89 %              reducing loss.
+without any augmentation. Through augmentation, its performance
+improves further to 99.92 %, slightly surpassing MobileNetV2's                     Figs. 10 -11 present a comparative analysis of accuracy and loss
+99.87 %. The model's loss dramatically drops with augmentation, from           across different models on the datasets, emphasizing performance var-
+0.0054 to 0.0032, indicating that it can handle diverse datasets effec-        iations and the significant impact of data augmentation on improving
+tively. Additionally, RTR_Lite_MobileNet's precision, recall, and              model outcomes. The findings of the confusion matrix generated during
+F1-score values are constantly above 99.85 %, indicating its ability to        the testing of the suggested model on multiple datasets are shown in
+maintain balanced predictions across all classes. The suggested model          Fig. 12. A thorough evaluation of the effectiveness of the model across
+also shows a 53.80 % reduction in parameters, from 2273,831 in                 various classes in each dataset is given by the confusion matrix.
+MobileNetV2 to 1050,547, with no loss of performance. Performance
+trends further highlight RTR_Lite_MobileNet's robustness across both               Fig. 12 shows the integrated confusion matrices and ROC curves for
+scenarios, with consistently lower loss and higher accuracy across             the RTR_Lite_MobileNet model's performance when tested on the Plant
+epochs, as shown in the training metrics Fig. 9(a). On the Coffee Dataset      Disease Dataset, PlantDoc, and PaddyDoctor. Similarly, Fig. 13 presents
+[53], RTR_Lite_MobileNet outperforms MobileNetV2 by 1.14 %,                    the confusion matrices and ROC curves for the RTR_Lite_MobileNet
+achieving 89.00 % accuracy without augmentation. With augmentation,            model when evaluated on the test datasets of Coffee, Wheat, Soybean,
+the accuracy increases to 90.84 %, 2.29 % higher than MobileNetV2's            and Sugarcane.
+88.55 %. The model demonstrates strong performance under enhanced
+settings, with precision (90.26 %), recall (90.32 %), and F1-score                 By highlighting true positives along the diagonal and presenting
+(90.23 %). The drop in loss from 0.4007 to 0.3858 indicate improved            misclassifications in off-diagonal regions, confusion matrices provide a
+generalization skills of the model. The benefits of augmentation are           clear visual illustration of the model's ability to accurately forecast each
+clearly observed in higher validation accuracy and lower loss as shown         class. ROC curves offer an in-depth assessment of a model's classification
+in Fig. 9(b).                                                                  capabilities by illustrating the relationship between the true positive
+                                                                               rate (sensitivity) and the false positive rate across all classes. The model
+    Without augmentation, RTR_Lite_MobileNet achieves an excellent             demonstrated exceptional capability in handling complex disease pat-
+accuracy of 97.62 % on the Wheat Dataset [54], which is comparable to          terns, achieving nearly flawless classification across all 39 categories
+MobileNetV2. However, augmentation provides significant benefits, as           and minimal misclassifications for the Plant Disease dataset. In the same
+RTR_Lite_MobileNet reaches a remarkable 100 % accuracy, out-                   spirit, the model exhibited a notable enhancement in performance on
+performing MobileNetV2 by 1.59 %. The model's remarkable ability to            the PlantDoc dataset following augmentation, showcasing its adapt-
+correctly identify all categories is demonstrated by its 100 % F1-score,       ability in managing challenging real-world datasets.
+precision, and recall scores. Fig. 9(c) highlights the rapid convergence
+of RTR_Lite_MobileNet on this dataset, with validation accuracy reach-             The model's performance on PaddyDoctor dataset was impressive,
+ing 100 % in fewer epochs.                                                     especially for diseases like "blast" class index 3 and "brown_spot," class
+                                                                               index 4 where it was perfect. But there were a few minor mis-
+    On Soybean dataset [55], without augmentation, RTR_Lite_Mobile-            classifications for visually similar categories, such as "bacterial_leaf_b-
+Net achieve accuracy of 94.07 % that is 2.03 % higher than Mobile-             light" index 1 and "bacterial_panicle_blight" Index 2.
+NetV2 (92.04 %). Its accuracy increases to 96.78 % with augmentation,
+outperforming MobileNetV2's 95.88 %. Metrics such as F1-score                      Due to overlapping visual cues, the model had considerable difficulty
+(96.75 %), recall (96.73 %), and precision (96.78 %) demonstrate how           differentiating between "Rust" index 0 and "Red Spider Mite," index 2 but
+well it handles imbalanced classes. The loss reduction from 0.2834 to          it showed high precision and recall for "healthy" leaves on the Coffee
+0.1243 indicates increased confidence in predictions. As shown in Fig. 9       dataset.
+(d), the validation accuracy and loss curves reflect RTR_Lite_MobileNet's
+improved learning trajectory with augmentation, ensuring both accu-                Similarly, datasets including Wheat, and Soybean showed high
+racy and stability.                                                            overall accuracy, with just slight performance differences in categories
+                                                                               with mildly different symptoms. Finally, the confusion matrix supports
+    The Sugarcane Dataset [56] shows that RTR_Lite_MobileNet out-              accurate classification across its three classes in the balanced Sugarcane
+performs MobileNetV2 with 96.67 % accuracy without augmentation.               Dataset, which was not augmented, and the ROC curve shows consis-
+This highlights the model's ability to perform consistently across small,      tently high AUC values.
+
+                                                                                   Grad-CAM serves as an effective visualization tool that aids in
+                                                                               interpreting and comprehending the decisions made by deep learning
+
+                                                                           13
+S. Duhan et al.  Current Plant Biology 42 (2025) 100459
+
+Fig. 9. Illustration of the training and validation accuracy achieved by the Standard MobileNetV2 and RTR_Lite_MobileNet models, both without and with
+augmentation, evaluated across seven diverse datasets: (a) Plant Disease Dataset [52]; (b) Soybean Plant [53]; (c) Coffee Plant [54]; (d) Wheat [55]; (e) Sugarcane
+[56]; (f) PlantDoc Dataset [57]; (g) PaddyDoctor Dataset [58].
+
+                                                                                                                          14
+S. Duhan et al.                                                                 Current Plant Biology 42 (2025) 100459
+
+Fig. 10. Comparative analysis of the accuracy of different models on the datasets, emphasizing performance variations and the significant impact of data
+augmentation on improving model outcomes.
+
+Fig. 11. Comparative analysis of loss across different models on the datasets, emphasizing performance variations and the significant impact of data augmentation
+on improving model outcomes.
+
+models. Through the creation of heatmaps, Grad-CAM emphasizes the               spots on plant leaves. This method not only helps confirm the depend-
+areas in an input image that have a substantial impact on the model's           ability of the model's predictions but also offers understanding into the
+predictions, facilitating the detection of essential features like disease      model's areas of emphasis. The results presented in Fig. 14 demonstrate
+
+                                                                            15
+S. Duhan et al.                                                          Current Plant Biology 42 (2025) 100459
+
+Fig. 12. Confusion Matrices and ROC Curves Illustrating Testing Performance of the RTR_Lite_MobileNet Model on Augmented Datasets from Plant Disease [52],
+PlantDoc [57], and PaddyDoctor [58].
+
+the use of Grad-CAM to visualize the performance of the proposed         lightweight models proposed for plant disease identification in recent
+RTR_Lite_MobileNet model in comparison to the MobileNetV2 model          studies. For this analysis, we specifically consider studies that proposed
+across various datasets.                                                 lightweight models and evaluated them using the PlantVillage dataset,
+                                                                         referred to in this study as the Plant Disease Dataset [48]. Table 4 pro-
+3.6. Comparative analysis with other proposed lightweight models         vides an overview of the comparative analysis of related lightweight
+                                                                         models and our proposed model. Raj Kumar et al. [23] implemented a
+    In this section, a comparative analysis is conducted on various      CNN approach, achieving 98.20 % accuracy across 8 classes in the
+
+                                                                     16
+S. Duhan et al.                                                              Current Plant Biology 42 (2025) 100459
+
+Fig. 13. Confusion Matrices and ROC Curves Illustrating Testing Performance of the RTR_Lite_MobileNet Model on Augmented Datasets from Coffee [53], Wheat
+[54], Soybean [55], Sugarcane [56].
+
+PlantVillage dataset. Sutaji and Yildiz [25] utilized the LEMOXINET          accuracy across 4 classes. Shafik et al. [30] proposed PDDNet-AE and
+model (MobileNetV2 + Xception), achieving 99.10 % accuracy over 39           PDDNet-LVE, achieving 96.74 % and 97.79 % accuracy respectively,
+classes. Altalak et al. [26] integrated ResNet101 with CBAM and SVM,         across 39 classes. Rakib et al. [32] employed a quantized CNN,
+achieving 97.2 % accuracy across 10 classes. Biswas et al. [12] used         achieving 98 % accuracy across 9 classes, while R. Maurya et al. [33]
+CNN that classifying 38 classes with 95.17 % accuracy. Chen et al. [28]      employed MLP, LSTM, and SVM achieving 97.45 % accuracy over 15
+combined MobileNetv2, DenseNet, and SCAM, achieving 98.50 %                  classes. Although studies by Sutaji et al. [25] and Dheeraj et al. [34]
+
+                                                                         17
+S. Duhan et al.  Current Plant Biology 42 (2025) 100459
+
+Fig. 14. GradCAMs visualization results of MobileNetV2 and RTR_Lite_MobileNet for datasets: (a) Plant Disease Dataset [52]; (b) Soybean Plant [53]; (c) Coffee Plant
+[54]; (d) Wheat [55]; (e) Sugarcane [56]; (f) PlantDoc Dataset [57]; (g) PaddyDoctor.Dataset [58].
+
+                                                                                                                          18
+S. Duhan et al.                                                                                                                                   Current Plant Biology 42 (2025) 100459
+
+Table 4                                                                             For evaluating the impact of transfer learning (TL) on the proposed
+Related work for comparison analysis.                                           model, we utilized the MobileNetV2 model that had been pre-trained on
+                                                                                the IMAGENET1K_V1 dataset. Experiment results are shown in Table 7.
+References        Methodology                Dataset         Accuracy           When analyzing RTR_Lite_MobileNet with and without transfer
+                                                             98.20 %            learning, it became evident that there were notable enhancements in
+Raj kumar et al.  CNN                        PlantVillage                       performance metrics. The model utilizing transfer learning achieved a
+  [23]                                       ­ 8 classes     99.10 %            significantly lower loss of 0.0054 and a remarkable accuracy of 99.89 %.
+                  LEMOXINET                  Plantvillage ­                     RTR_Lite_MobileNet without transfer learning has less numbers of pa-
+Sutaji and        (MobileNetV2 + Xception)   39 classes      97.2 %             rameters, hence the inference time of the models is lower than that of the
+  Yildiz [25]     model                                                         pretrained RTR_Lite_MobileNet.
+                  ResNet101 + CBAM           PlantVillage    95.17
+Altalak et al.    + SVM                      - 10 classes                       4.1. Impact of attention mechanisms and architectural modifications
+  [26]            CNN                        PlantVillage    98.50 %
+                                             ­ 38 classes                           Table 8 displays the outcomes of ablation investigations performed
+Biswas et al.     Mobilenetv2 + DenseNet     PlantVillage    96.74 %-           on the suggested model, MobileNetV2, with various modifications, and
+  [12]            + SCAM                     ­ 4 classes     PDDNet-AE          Fig. 15 represent the GradCAM saliency map visualization results of
+                  PDDNet-AE (Early Fusion),  PlantVillage    97.79 % -          various models.
+Chen et al. [28]  PDDNet-LVE (Major          - 39 classes    PDDNet-LVE
+                  voting)                                    98 %                   Model 1: The development of Model 1 involved the introduction of
+Shafik et al.                                PlantVillage -                     the triplet attention module, replacing the initial feature layer of the
+  [30]                                       9 classes       97.45 %            original MobileNetV2. In model 1, the last three layers of the original
+                                             Plantvillage                       MobileNetV2 are dropped. It has a model size of 3.91MB, with 1024,271
+Rakib et al.      Quantized CNN              - 15 classes    99.39 %            total parameters, of which 697,792 are trainable parameters and
+  [32]                                       PlantVillage                       326,479 are non-trainable parameters, The model achieves a testing
+                  MLP + LSTM + SVM           - 39 classes    99.11 %            accuracy of 99.74 %.
+R. Maurya et al.                             PlantVillage
+  [33]            DenseNet121                ­ 11 classes    99.27 %                Model 2: To test the effect of the ECA module, we replaced the triplet
+                                             PlantVillage                       attention module in Model 1 with the ECA module. The total parameter
+Dheeraj et al.    EfficientNetB0 + SE        ­ 39 classes    99.89 %            count of Model 2 is 1024,075, of which 697,792 are trainable parame-
+  [34]            module                     PlantVillage -  (without           ters and 326,283 are non-trainable parameters. Model 2 achieves a
+                  CNN + Transformer          39 classes      augmentation)      testing accuracy of 99.28 %, which is lower compared to Model 1.
+Assaduzzaman                                                 99.92 % (with
+  et al. [35]                                                augmentation)          Model 3: Model 3 is similar to Model 2, but instead of just adding the
+                                                                                ECA module, we added RES_BLOCK, which contains SENet and the ECA
+Thai & Le, [36]                                                                 module. Model 3 has a total of 1024,331 parameters, of which 697,792
+                                                                                are trainable and 326,539 are non-trainable parameters. Model 3 ach-
+Proposed model RTR_Lite_MobileNet                                               ieves a testing accuracy of 99.67 %, which is higher than Model 2 but
+                                                                                lower than Model 1.
+achieved high accuracy, their parameter counts remain high, approxi-
+mately 26.57 million and 1.5 million respectively, which is higher than             Model 4: In Model 4, instead of just adding one attention block, both
+our proposed model's parameter count of 1.05 million. Assaduzzaman              triplet attention and RES_Block are added in the initial layer of Mobi-
+et al. [35], proposed the lightweight XSE-TomatoNet model                       leNetV2 for efficient extraction of relevant features. Now, the model size
+(EfficientNetB0 + SE module), achieving 99.11 % accuracy on the                 remains the same, but now the total parameters are 1,024,531. After the
+PlantVillage dataset (11 classes), while in study [36], CNN and Trans-          introduction of RES_Block, the model achieves a testing accuracy of
+former were utilized that achieves 99.27 % accuracy on the PlantVillage         99.84 %, which is a 0.10 % increment compared to Model 1
+dataset (39 classes). The proposed RTR_Lite_MobileNet model achieved
+the highest accuracy of 99.89 % across 39 classes without augmentation              Model 5: In Model 3, the initial features remain the same as in Model
+and 99.92 % with augmentation, underscoring its effectiveness in plant          2, but the last layers of MobileNetV2, which were dropped, are replaced
+disease classification using the PlantVillage dataset.                          with RES_BLOCK, TAM, and RES_BLOCK, respectively. Model 5 has a
+                                                                                model size of 3.96 and a total parameter count of 1,037,539, of which
+4. Ablation experiments                                                         1,024,396 are trainable and 13,143 are non-trainable parameters. It
+                                                                                achieves a testing accuracy of 99.79 %. The addition of attention blocks
+    To determine the most effective optimizer for the proposed model,           increases the model complexity.
+experiments were conducted using four different optimizers: ADAM,
+ADAMW, SGD, and RMSProp during the training phase on the Plant                      Model 6 (proposed model): Model 6 is modified. Model 5, in which
+Disease dataset without augmentation. The performance of the                    the same architecture is followed, but to increase the model's perfor-
+RTR_Lite_MobileNet model was evaluated, and the results are presented           mance in identifying the disease-related regions in the image. To achieve
+in Table 5. Analyzing the data in Table 5, it is evident that the proposed      this, the last RES_BLOCK, TAM, and RES_BLOCK are repeated one more
+model achieved testing accuracies of 99.89 %, 99.84 %, 92.02 %, and             time just before the classifier layer. By doing this, the model size be-
+99.77 % for the Adam, AdamW, SGD, and RMSProp optimizers,                       comes 4.01 MB, and the total parameter counts is 1,050,547, of which
+respectively. Notably, the highest accuracy was obtained with the Adam          1,037,404 are trainable parameters and 13,143 are non-trainable pa-
+optimizer. Thus, for both training and testing phases of the proposed           rameters. The model achieves a high testing accuracy of 99.89 %. As
+model, Adam optimizer was employed. After the optimizer is selected,            evident from Fig. 15 (g), the model correctly identify each disease spot
+proposed model is evaluated considering different learning rates, and
+execution results are presented in Table 6.
+
+Table 5
+Performance comparison of RTR_Lite_MobileNet using different optimizers.
+
+Model             Model Size   Total parameters  Loss        Accuracy           Precision  Recall   F1-score  AUC- Score  Kappa Score
+
+Adam              4.01         1050,547          0.0054      99.89 %            99.87 %    99.85 %  99.86 %   100.00 %    99.88 %
+                                                 0.0085      99.84 %            99.81 %    99.75 %  99.78 %   100.00 %    99.83 %
+AdamW                                            0.2921      90.75 %            90.04 %    90.25 %  99.78 %               90.75 %
+                                                 0.0127      99.77 %            99.75 %    99.71 %  99.73 %    91.68 %    99.76 %
+SGD                                                                                                            99.99 %
+
+RMSprop
+
+                                                                            19
+S. Duhan et al.                                                                                                           Current Plant Biology 42 (2025) 100459
+
+Table 6
+Performance comparison of RTR_Lite_MobileNet using different learning rate.
+
+Model                        Learning Rate            Loss            Accuracy            Precision    Recall   F1-score  AUC- Score  Kappa Score
+
+RTR_Lite_MobileNet           0.001                    0.0054          99.89 %             99.87 %      99.85 %  99.86 %   100.00 %    99.88 %
+                             0.003                    0.0145          99.74 %             99.66 %      99.68 %  99.67 %    99.99 %    99.73 %
+                             0.005                    0.0118          99.67 %             99.60 %      99.56 %  99.57 %    99.99 %    99.66 %
+
+Table 7
+Performance comparison of RTR_Lite_MobileNet with or without Transfer learning.
+
+Model                               Parameters count          Loss              Accuracy    Precision  Recall   F1-score  AUC- Score  Kappa Score
+
+RTR_Lite_MobileNet with TL          1,050,547                 0.0054            99.8 %      99.87 %    99.85 %  99.86 %   100.00 %    99.88 %
+RTR_Lite_MobileNet without TL       1,024,691                 0.0190            99.4 %      99.23 %    99.28 %  99.25 %   100.00 %    99.41 %
+
+Table 8
+Results of ablation experiments on proposed model.
+
+Model            Model Size         Total parameters          Loss    Accuracy              Precision  Recall   F1-score  AUC- Score  Kappa Score
+
+Model 1          3.91               1,024,271                 0.0090  99.74 %               99.65 %    99.66 %  99.66 %    99.99 %    99.73 %
+                                    1,024,075                 0.0233  99.27 %               99.09 %    99.07 %  99.09 %   100.00 %    99.27 %
+Model 2          3.91               1,024,331                 0.0103  99.67 %               99.58 %    99.59 %  99.58 %   100.00 %    99.66 %
+                                    1,024,531                 0.0068  99.84 %               99.76 %    99.79 %  99.77 %   100.00 %    99.83 %
+Model 3          3.91               1,037,799                 0.0142  99.79 %               99.74 %    99.70 %  99.72 %   100.00 %    99.78 %
+                                    1,050,547                 0.0054  99.89 %               99.87 %    99.85 %  99.86 %   100.00 %    99.88 %
+Model 4          3.91               1,024,691                 0.0106  99.74 %               99.66 %    99.66 %  99.66 %   100.00 %    99.73 %
+
+Model 5          3.96
+
+Model 6          4.01
+
+Model 7          3.91
+
+Fig. 15. GradCAM Saliency Map results of the ablation experiment on RTR_Lite_MobileNet: (a) Original image; (b) Model 1; (c) Model 2; (d) Model 3; (e) Model 4; (f)
+Model 5; (g) Model 6; (h) Model 7.
+
+on the given image, showcasing its capability to capture more mean-                         lightweight nature. For this, the TAM and ECA modules are first intro-
+ingful and focused regions of the image, validating the enhanced feature                    duced in the initial layer, and after removing the last three layers of the
+representation.                                                                             original MobileNetV2, the ECA, TAM, and ECA modules are added, and
+                                                                                            repeated twice as done in Model 4. The Model 7 has 1,024,691 total
+    Model 7: Model 7 is created by modifying Model 6, as already dis-                       parameters, of which 1,018,204 are trainable and 6487 are non-
+cussed in the section above. With the addition of the attention block in                    trainable. Model 7 achieves a testing accuracy of 99.74 %. As shown
+the end, the model's inference time increases. To tackle this, in this                      in Fig. 13 (h), Model 7 cannot identify all disease areas in the image like
+model instead of RES_Block, only the ECA module is used due to its
+
+                                                                                        20
+S. Duhan et al.                                                                                                                                   Current Plant Biology 42 (2025) 100459
+
+Model 6 (the suggested model). These results provide insights into how          augmentation, reducing loss from 0.2834 to 0.1243. The Sugarcane
+different modifications to the MobileNetV2 architecture and choice of           dataset, which is balanced and does not require augmentation, achieved
+optimizer impact its performance.                                               96.67 % accuracy, demonstrating the model's inherent robustness and
+                                                                                efficiency in smaller datasets.
+5. Performance evaluation on IoT devices
+                                                                                    Deployment findings on IoT devices supported the model's effi-
+    In this study, the widely accepted PyTorch deep learning framework          ciency. On Raspberry Pi 4, RTR_Lite_MobileNet achieved a CPU latency
+was used to create and train the proposed model for plant disease               of 78 ms compared to MobileNetV2's 81 ms (a 3.85 % improvement)
+classification. PyTorch was chosen primarily because of its adaptability        and decreased GPU latency to 13 ms versus 14 ms (7.69 % improve-
+in both model development and training. For testing the proposed                ment). On Raspberry Pi 5, the model had a CPU latency of 136 ms,
+model's efficacy on IoT devices, the model is converted to TensorFlow           compared to MobileNetV2's 142 ms (4.41 % improvement), and a GPU
+Lite; the whole procedure carried out is depicted in Fig. 16. The model         delay of 22 ms versus 24 ms (a 9.09 % improvement). These results
+was transferred to the ONNX (Open Neural Network Exchange) format               highlight the model's computational efficiency, making it highly suit-
+after training was finished.                                                    able for real-time agricultural applications. The proposed model is
+                                                                                efficient for use in large and complex datasets as well as for multi-
+    ONNX functions as a bridge representation, facilitating compatibility       classification tasks.
+across frameworks, enhancing translation efficiency, and minimizing
+dependencies on specific frameworks. The ONNX model was then con-                   While RTR_Lite_MobileNet demonstrates significant improvements
+verted to TensorFlow Lite, a format appropriate for deployment on               in accuracy, efficiency, and adaptability for plant disease classification,
+resource-constrained edge devices. This conversion phase was essential          it is important to acknowledge certain limitations. Crop disease identi-
+for enhancing the model's performance by decreasing computational               fication exhibits inherent variability influenced by factors such as sea-
+complexity and memory usage. The TensorFlow Lite model was ulti-                sonality, crop maturity, foliar damage, and environmental conditions,
+mately implemented on multiple edge devices, including Raspberry Pi 4,          including light and background complexity. These parameters can
+Raspberry Pi 5, and Jetson Nvidia Nano, where inferences speed, la-             significantly impact the model's performance; nevertheless, they are
+tency, and compute performance were evaluated.                                  inadequately examined in the present work. Future efforts will focus on
+                                                                                conducting field trials to assess the model's robustness under real-world
+    Prior to deploying the RTR_Lite_MobileNet and MobileNetV2 models            settings. This evaluation will provide critical insights into its depend-
+on IoT devices like Raspberry Pi 4 and Raspberry Pi 5, quantization is          ability and suitability for actual agricultural monitoring. Furthermore,
+performed on TensorFlow Lite models to enhance performance. Table 9             the datasets used in this study could not accurately reflect the variation
+shows the results of both models' deployments. The findings indicate            seen in real-world agricultural environments. By simulating realistic
+that RTR_Lite_MobileNet outperforms MobileNetV2 in terms of overall             variations in disease patterns, light, and leaf conditions using synthetic
+performance, with much lower CPU and GPU latency and RAM utili-                 data generation techniques--like GANs--data diversity will be
+zation. Despite these improvements, latency reduction could yet be              improved. This approach will improve the capacity of our model to
+improved. To solve this, future research can look into methods like             generalize over several contexts. External dataset cross-validation will
+structured pruning, lightweight attention mechanisms, hardware-                 assess the model's adaptability to new data and improve its global
+specific optimizations, and dynamic resolution adaption. These                  agricultural reliability. RTR_Lite_MobileNet uses attention techniques
+methods have the potential to further reduce computational demands              that add computational complexity and somewhat slow down inference,
+and latency.                                                                    despite their advantages. The suggested architecture still has a higher
+                                                                                FLOP count than MobileNetV3 and ShuffleNetV2, necessitating further
+6. Discussion and future scope                                                  optimization. Future investigations will delve into intricate techniques
+                                                                                such as quantization-aware training and structured pruning to tackle
+    The proposed RTR_Lite_MobileNet integrates advanced attention               these challenges. In order to reduce computational expenses and
+mechanism like Triplet Attention, SENet, and the ECA module to                  enhance the model's scalability and adaptability for deployment across
+improve the model's disease-related feature extraction ability. The study       various IoT devices, an examination of lightweight attention techniques
+found that the RTR_Lite_MobileNet model outperforms MobileNetV2                 will be conducted. Additionally, to augment datasets with authentic
+across the Plant Disease, Coffee, PlantDoc, Soybean, Sugarcane, Wheat,          variances and guarantee resilience across various agricultural contexts,
+and PaddyDoctor datasets. Without augmentation, the model achieved              forthcoming research will integrate synthetic data generation methods,
+99.89 % accuracy on the Plant Disease dataset, surpassing MobileNetV2           such as GANs, to improve data diversity and generalizability. The cross-
+by 0.23 %. Augmentation further increased accuracy to 99.92 %, while            valuation of external datasets will be prioritized to assess the model's
+reducing loss from 0.0054 to 0.0032. The model's 82.00 % accuracy on            adaptability to real-world conditions and data scarcity [62,63].
+the difficult PlantDoc dataset shows it can handle complex real-world
+photos. The model's 97.11 % accuracy on the PaddyDoctor dataset                     Furthermore, edge-cloud hybrid systems will be examined to ensure
+proved its reliability, while its loss was minimized to 0.1110. Similarly,      continuous connectivity between cloud platforms and IoT devices. This
+RTR_Lite_MobileNet achieved 90.84 % accuracy on the Coffee dataset.             approach will facilitate efficient scaling for large-scale agricultural
+For the Wheat dataset, the model achieved 100 % classification accuracy         monitoring systems by offloading resource-intensive operations to the
+with augmentation, surpassing MobileNetV2 by 1.59 %. The Soybean                cloud, while maintaining real-time forecasts at the edge [64]. By further
+dataset showed a similar pattern, with the model achieving 94.07 %              improving RTR_Lite_MobileNet, these developments hope to make it a
+accuracy without augmentation and improving to 96.78 % with                     more reliable, effective, and highly flexible solution for actual agricul-
+                                                                                tural problems, especially in settings with limited resources where
+                                                                                reliability and effectiveness are crucial.
+
+                                                                                7. Conclusion
+
+Fig. 16. Workflow for deploying RTR_Lite_MobileNet on Resource-Constrained          This study introduces RTR_Lite_MobileNet, an improved and
+IoT Devices.                                                                    streamlined version of the MobileNetV2 model that incorporates several
+                                                                                attention mechanisms, including triplet attention, SENet, and ECA. The
+                                                                                suggested approach outperforms various standard classification models,
+                                                                                including ResNet101, EfficientNetV2, ShuffleNetV2, ViT_B_16, and
+                                                                                MobileNetV2, on the Plant Disease Dataset. RTR_Lite_MobileNet
+
+                                                                            21
+S. Duhan et al.                                                                                             Current Plant Biology 42 (2025) 100459
+
+Table 9
+Performance Comparison of RTR_Lite_MobileNet and MobileNetV2 on IoT.
+
+Model               Device          RAM usage (MB)                           ROM usage (tflite model) (MB)  Latency (CPU)     Latency (GPU)
+
+RTR_Lite_MobileNet  Respberry Pi 4  2.5                                      1.7                            78 ms             13 ms
+                                                                             2.5                            81 ms (+3.85 %)   14 ms (+7.69 %)
+MobileNetV2                         2.6                                      1.7                            136 ms            22 ms
+                                                                             2.5                            142 ms (+4.41 %)  24 ms (+9.09 %)
+RTR_Lite_MobileNet  Respberry Pi 5  2.5
+
+MobileNetV2                         3.0
+
+surpasses the MobileNetV2 model across seven publicly accessible                 Doc Dataset (https://www.kaggle.com/datasets/abdulhasibuddin/
+datasets, demonstrating superior performance in many evaluation
+metrics like accuracy, precision, recall, and F1 scores, while also pre-         plant-doc-dataset), and PaddyDoctor Dataset (https://www.kaggle.
+serving a reduced model size and fewer trainable parameters. On the
+Plant Disease dataset, the RTR_Lite_MobileNet attained an accuracy of            com/datasets/imbikramsaha/paddy-doctor).
+99.89 %, which increased to 99.92 % with augmentation.
+                                                                                 References
+    On the challenging PlantDoc dataset, the model achieved a classifi-
+cation accuracy of 82.00 % with augmentation, demonstrating its effi-             [1] X. Jiang, Y. Sun, M. Shen, L. Tang, How does developing green agriculture affect
+ciency in detecting complicated patterns in real-world data. The findings               poverty? Evidence from China's prefecture-level cities, Agric 14 (3) (2024) 402,
+of this study demonstrate that attention mechanisms can be efficiently                  https://doi.org/10.3390/agriculture14030402.
+used in neural networks to improve model performance. Alternative
+implementations of attention mechanisms could replace the current                 [2] J. Rockstro¨m, J. Williams, G. Daily, A. Noble, N. Matthews, L. Gordon,
+layer of the model, leading to a reduction in model size and parameter                  H. Wetterstrand, F. DeClerck, M. Shah, P. Steduto, C. De Fraiture, N. Hatibu,
+count. It is essential to conduct experiments to assess the comparability               O. Unver, J. Bird, L. Sibanda, J. Smith, Sustainable intensification of agriculture for
+of the utilized attention mechanisms and deep learning models. The                      human prosperity and global sustainability, Ambio 46 (1) (2016) 4­17, https://doi.
+incorporation of advanced attention mechanisms markedly diminished                      org/10.1007/s13280-016-0793-6.
+the model's size and trainable parameters, hence enhancing its appli-
+cability for deployment on resource-limited IoT devices. This paper               [3] S. Savary, L. Willocquet, S.J. Pethybridge, P. Esker, N. McRoberts, A. Nelson, The
+rigorously evaluates the proposed RTR_Lite_MobileNet model, vali-                       global burden of pathogens and pests on major food crops, Nat. Ecol. Evol. 3 (3)
+dating its effectiveness and robustness for real-time plant disease                     (2019) 430­439, https://doi.org/10.1038/s41559-018-0793-y.
+detection through deployment on Raspberry Pi 4 and Raspberry Pi 5,
+where it achieved lower latency compared to MobileNetV2, demon-                   [4] S. Yu, L. Xie, Q. Huang, Inception convolutional vision transformers for plant
+strating its practical applicability for real-time agricultural monitoring.             disease identification, Internet Things 21 (2023) 100650, https://doi.org/
+Future research will focus on optimization techniques, broader dataset                  10.1016/j.iot.2022.100650.
+validation, and advanced methods to enhance the model's adaptability
+and efficiency in diverse scenarios.                                              [5] T. Zhang, Y. Cai, P. Zhuang, J. Li, Remotely sensed crop disease monitoring by
+                                                                                        machine learning algorithms: a review, Unmanned Syst. 12 (1) (2024) 161­171,
+Funding                                                                                 https://doi.org/10.1142/S2301385024500237.
+
+    The authors declare that they did not receive any funding or grants           [6] A. Morchid, M. Marhoun, R. El Alami, et al., Intelligent detection for sustainable
+during the preparation of this manuscript                                               agriculture: a review of IoT-based embedded systems, cloud platforms, DL, and ML
+                                                                                        for plant disease detection, Multimed. Tools Appl. 83 (2024) 70961­71000,
+CRediT authorship contribution statement                                                https://doi.org/10.1007/s11042-024-18392-9.
+
+    Sangeeta Duhan: Conceptualization, Data curation, Methodology,                [7] G. Huang, Z. Liu, L. Van Der Maaten, K.Q. Weinberger, Densely connected
+Writing ­ original draft, Preeti Gulia: Conceptualization, Validation,                  convolutional networks, in: Proc. IEEE Conf. Comput. Vis. Pattern Recognit.
+Review & Editing, Supervision, Nasib Singh Gill: Formal analysis,                       (CVPR)2017, pp. 2261­2269, https://doi.org/10.1109/CVPR.2017.243.
+Validation, Review & Editing, Supervision, and Ekta Narwal: Validation,
+Review & Editing. All authors read and approved the final manuscript              [8] K. Simonyan, A. Zisserman, Very deep convolutional networks for large-scale
+for publication.                                                                        image recognition, 3rd International Conference on Learning Representations
+                                                                                        (ICLR), 2015, pp. 1­14, https://doi.org/10.48550/arXiv.1409.1556.
+Declaration of Competing Interest
+                                                                                  [9] K. He, X. Zhang, S. Ren, J. Sun, Deep residual learning for image recognition, in:
+    The authors declare that they have no known competing financial                     Proc. IEEE Conf. Comput. Vis. Pattern Recognit. (CVPR), 2016, pp. 770­778,
+interests or personal relationships that could have appeared to influence               https://doi.org/10.1109/CVPR.2016.90.
+the work reported in this paper.
+                                                                                 [10] N. Sameera, B.A. Ram, P.S.S. Prasad, A. Lakshmanarao, Plant disease detection
+Data Availability                                                                       using MLP, Convnets and Densenet models, in: Proc. Fourth Int. Conf. Adv. Electr.
+                                                                                        Comput. Commun. Sustain. Technol. (ICAECT), 2024, pp. 1­5, https://doi.org/
+    Data will be made available on request. The datasets for this study                 10.1109/ICAECT60202.2024.10468895.
+are available at the following sources: Plant Disease Dataset (https://
+data.mendeley.com/datasets/tywbtsjrjv/1), Soybean Plant Dataset                  [11] M. A. Rajab, F.A. Abdullatif, T. Sutikno, Classification of grapevine leaves images
+(https://data.mendeley.com/datasets/bycbh73438/1), Coffee Plant                         using VGG-16 and VGG-19 deep learning nets, Telkomnika 22 (2) (2024) 445,
+Disease Dataset (https://data.mendeley.com/datasets/c5yvn32dzg/2),                      https://doi.org/10.12928/telkomnika.v22i2.25840.
+Wheat Leaf Dataset (https://www.kaggle.com/datasets/olyadgetch/
+wheat-leaf-dataset), Sugarcane Disease Dataset (https://www.kaggle.              [12] S. Biswas, I. Saha, A. Deb, Plant disease identification using a novel time-effective
+com/datasets/prabhakaransoundar/sugarcane-disease-dataset), Plant-                      CNN architecture, Multimed. Tools Appl. 83 (2024) 82199­82221, https://doi.
+                                                                                        org/10.1007/s11042-024-18822-8.
+
+                                                                                 [13] M. Sandler, A. Howard, M. Zhu, A. Zhmoginov, L. Chen, MobileNetV2: Inverted
+                                                                                        Residuals and Linear Bottlenecks, in: 2018 IEEE/CVF Conference on Computer
+                                                                                        Vision and Pattern Recognition (CVPR), Salt Lake City, UT, USA2018, pp. 4510-
+                                                                                        4520. https://doi.org/10.1109/CVPR.2018.00474.
+
+                                                                                 [14] N. Ma, X. Zhang, H.T. Zheng, J. Sun, ShuffleNet V2: Practical Guidelines for
+                                                                                        Efficient CNN Architecture Design, in: V. Ferrari, M. Hebert, C. Sminchisescu,
+                                                                                        Y. Weiss (Eds.), Computer Vision ­ ECCV 2018, ECCV 2018. Lecture Notes in
+                                                                                        Computer Science, 11218, Springer, Cham, 2018, pp. 615­630, https://doi.org/
+                                                                                        10.1007/978-3-030-01264-9_8.
+
+                                                                                 [15] M. Tan, Q. Le, EfficientNet: Rethinking Model Scaling for Convolutional Neural
+                                                                                        Networks, Proceedings of the 36th International Conference on Machine Learning,
+                                                                                        in Proceedings of Machine Learning Research, 2019, 97 pp.6105-6114https
+                                                                                        ://proceedings.mlr.press/v97/tan19a.html.
+
+                                                                                 [16] P.S. Thakur, S. Chaturvedi, P. Khanna, T. Sheorey, A. Ojha, Vision transformer
+                                                                                        meets convolutional neural network for plant disease classification, Ecol. Inform.
+                                                                                        77 (2023) 102245, https://doi.org/10.1016/j.ecoinf.2023.102245.
+
+                                                                                 [17] F. Aghaee, E. Fazl-Ersi, H. Noori, MDSSD-MobV2: an embedded deconvolutional
+                                                                                        multispectral pedestrian detection based on SSD-MobileNetV2, Multimed. Tools
+                                                                                        Appl. (2023), https://doi.org/10.1007/s11042-023-17188-7.
+
+                                                                                 [18] S. Banarase, S. Shirbahadurkar, The orchard guard: deep learning powered apple
+                                                                                        leaf disease detection with MobileNetV2 model, 799, J. Integr. Sci. Technol. 12
+                                                                                        (2024) 799, https://doi.org/10.62110/sciencein.jist.2024.v12.799.
+
+                                                                                 [19] R.K. Banoth, B.V.R. Murthy, Soil image classification using transfer learning
+                                                                                        approach: MobileNetV2 with CNN, SN Comput. Sci. 5 (1) (2024) 199, https://doi.
+                                                                                        org/10.1007/s42979-023-02500-x.
+
+                                                                             22
+S. Duhan et al.                                                                                                                                                    Current Plant Biology 42 (2025) 100459
+
+[20] A. Arya, P.K. Mishra, MobileNetV2-Incep-M: a hybrid lightweight model for the               [43] P. Yuan, Y. Xia, Y. Tian, H. Xu, TRiP: a transfer learning-based rice disease
+       classification of rice plant diseases, Multimed. Tools Appl. 83 (2024)                           phenotype recognition platform using SENet and microservices, Front. Plant Sci. 14
+       79117­79144, https://doi.org/10.1007/s11042-024-18723-w.                                         (2024) 1255015, https://doi.org/10.3389/fpls.2023.1255015.
+
+[21] G. Liu, J. Peng, A.A.A. El-Latif, SK-MobileNet: a lightweight adaptive network              [44] S. Zhao, Y. Peng, J. Liu, S. Wu, Tomato leaf disease diagnosis based on improved
+       based on complex deep transfer learning for plant disease recognition, Arab. J. Sci.             convolution neural network by attention module, Agriculture 11 (7) (2021) 651,
+       Eng. 48 (2) (2023) 1661­1675, https://doi.org/10.1007/s13369-022-06987-z.                        https://doi.org/10.3390/agriculture11070651.
+
+[22] K.G. Panchbhai, M.G. Lanjewar, V.V. Malik, P. Charanarur, Small size CNN (CAS-              [45] Q. Zeng, L. Niu, S. Wang, W. Ni, SEViT: a large-scale and fine-grained plant disease
+       CNN), and modified MobileNetV2 (CAS-MODMOBNET) to identify cashew nut and                        classification model based on transformer and attention convolution, Multimed.
+       fruit diseases, Multimed. Tools Appl. 83 (2024) 89871­89891, https://doi.org/                    Syst. 29 (2023) 1001­1010, https://doi.org/10.1007/s00530-022-01034-1.
+       10.1007/s11042-024-19042-w.
+                                                                                                 [46] Q. Wang, B. Wu, P. Zhu, P. Li, W. Zuo, Q. Hu, ECA-Net: efficient channel attention
+[23] R. Kumar, A. Chug, A.P. Singh, Plant foliage disease diagnosis using light-weight                  for deep convolutional neural networks, in: Proc. IEEE/CVF Conf. Comput. Vis.
+       efficient sequential CNN model, Opt. Mem. Neural Net. 32 (4) (2023) 331­345,                     Pattern Recognit. (CVPR), Seattle, WA, USA, 2020, pp.11531­11539, https://doi.
+       https://doi.org/10.3103/S1060992X23040100.                                                       org/10.1109/CVPR42600.2020.01155.
+
+[24] M. Alkanan, Y. Gulzar, Enhanced corn seed disease classification: Leveraging                [47] A. Krizhevsky, I. Sutskever, G.E. Hinton, ImageNet classification with deep
+       MobileNetV2 with feature augmentation and transfer learning, Front. Appl. Math.                  convolutional neural networks, Commun. ACM 60 (6) (2017) 84­90, https://doi.
+       Stat. 9 (2024) 1320177, https://doi.org/10.3389/fams.2023.1320177.                               org/10.1145/3065386.
+
+[25] D. Sutaji, O. Yildiz, LEMOXINET: Lite ensemble MobileNetV2 and Xception models              [48] C. Szegedy, V. Vanhoucke, S. Ioffe, J. Shlens, Z. Wojna, Rethinking the inception
+       to predict plant disease, Ecol. Inform. 70 (2022) 101698, https://doi.org/10.1016/               architecture for computer vision, in: Proc. IEEE Conf. Comput. Vis. Pattern
+       j.ecoinf.2022.101698.                                                                            Recognit. (CVPR), Las Vegas, NV, USA, 2016, pp.2818­2826, https://doi.org/
+                                                                                                        10.1109/CVPR.2016.308.
+[26] M. Altalak, M.A. Uddin, A. Alajmi, A. Rizg, A hybrid approach for the detection and
+       classification of tomato leaf diseases, Appl. Sci. 12 (16) (2022) 8182, https://doi.      [49] W. Liu, D. Anguelov, D. Erhan, C. Szegedy, S. Reed, C.-Y. Fu, A.C. Berg, SSD: Single
+       org/10.3390/app12168182.                                                                         shot multibox detector, in: Proc. Comput. Vis.­ECCV 2016, in: Lecture Notes
+                                                                                                        Computure Science, 9905, Springer, Cham, 2016, pp. 21­37, https://doi.org/
+[27] S. Woo, J. Park, J.Y. Lee, I.S. Kweon, CBAM: Convolutional Block Attention                         10.1007/978-3-319-46448-0_2.
+       Module, in: V. Ferrari, M. Hebert, C. Sminchisescu, Y. Weiss (Eds.), Computer
+       Vision ­ ECCV 2018, ECCV 2018. Lecture Notes in Computer Science, 11211,                  [50] A. Howard, M. Sandler, B. Chen, W. Wang, L.C. Chen, M. Tan, G. Chu, V.
+       Springer, Cham, 2018, pp. 3­19, https://doi.org/10.1007/978-3-030-01234-2_1.                     Vasudevan, Y. Zhu, R. Pang, H. Adam, Q. Le, Searching for MobileNetV3, in: Proc.
+                                                                                                        IEEE/CVF Int. Conf. Comput. Vis. (ICCV)2019, pp. 1314­1324, https://doi.org/
+[28] J. Chen, W. Wang, D. Zhang, A. Zeb, Y.A. Nanehkaran, Attention embedded                            10.1109/ICCV.2019.00140.
+       lightweight network for maize disease recognition, Plant Pathol. 70 (3) (2020)
+       630­642, https://doi.org/10.1111/ppa.13322.                                               [51] R.R. Selvaraju, M. Cogswell, A. Das, R. Vedantam, D. Parikh, D. Batra, Grad-CAM:
+                                                                                                        visual explanations from deep networks via gradient-based localization, in: Proc.
+[29] G. Geetharamani, A. Pandian, Identification of plant leaf diseases using a nine-                   IEEE Int. Conf. Comput. Vis. (ICCV), Venice, Italy2017, pp. 618­626, https://doi.
+       layer deep convolutional neural network, Comput. Electr. Eng. 76 (2019) 323­338,                 org/10.1109/ICCV.2017.74.
+       https://doi.org/10.1016/j.compeleceng.2019.04.011.
+                                                                                                 [52] A. Pandian, G. Gopal, Data for: Identification of Plant Leaf Diseases Using a 9-layer
+[30] W. Shafik, A. Tufail, C.D.S. Liyanage, R.A.A.H. Mohd Apong, Using transfer                         Deep Convolutional Neural Network, Dataset, (2019) Retrieved December 15,
+       learning-based plant disease classification and detection for sustainable                        2024, from Mendeley Data:https://doi.org/10.17632/tywbtsjrjv.1.
+       agriculture, BMC Plant Biol. 24 (1) (2024) 136, https://doi.org/10.1186/s12870-
+       024-04825-y.                                                                              [53] Parraga-Alava, J., Cusme, K., Loor, A., & Santander, E. RoCoLe: A robusta coffee
+                                                                                                        leaf images dataset. (2019). Retrieved December 15, 2024, from Mendeley Data:
+[31] G. Dai, Z. Tian, J. Fan, C.K. Sunil, C. Dewi, DFN-PSAN: multi-level deep                           https://doi.org/10.17632/c5yvn32dzg.2.
+       information feature fusion extraction network for interpretable plant disease
+       classification, Comput. Electron. Agric. 216 (2024) 108481, https://doi.org/              [54] Olyad Getch, Wheat Leaf dataset, (2021). Retrieved December 15, 2024, from
+       10.1016/j.compag.2023.108481.                                                                    Kaggle website: https://www.kaggle.com/datasets/olyadgetch/wheat-leaf-data
+                                                                                                        set.
+[32] A.F. Rakib, R. Rahman, A.A. Razi, A.S.M.T. Hasan, A lightweight quantized CNN
+       model for plant disease recognition, Arab. J. Sci. Eng. 49 (3) (2023) 4097­4108,          [55] M.E. Mignoni, Images of soybean leaves, (2021). Retrieved from Mendeley Data:
+       https://doi.org/10.1007/s13369-023-08280-z.                                                      https://doi.org/10.17632/bycbh73438.1.
+
+[33] R. Maurya, S. Mahapatra, L. Rajput, A lightweight meta-ensemble approach for                [56] P. Soundar, Sugarcane Disease Dataset. (2022). Retrieved December 15, 2024,
+       plant disease detection suitable for IOT-based environments, IEEE Access 12                      from Kaggle website: https://www.kaggle.com/datasets/prabhakaransounda
+       (2024) 28096­28108, https://doi.org/10.1109/access.2024.3367443.                                 r/sugarcane-disease-dataset.
+
+[34] A. Dheeraj, S. Chand, LWDN: lightweight DenseNet model for plant disease                    [57] D. Singh, N. Jain, P. Jain, P. Kayal, S. Kumawat, N. Batra, PlantDoc: a dataset for
+       diagnosis, J. Plant Dis. Prot. 131 (3) (2024) 1043­1059, https://doi.org/10.1007/                visual plant disease detection (New York, NY, USA: Association for Computing
+       s41348-024-00915-z.                                                                              Machinery), : Proc. 7th ACM IKDD CoDS 25th COMAD (2020) 249­253, https://
+                                                                                                        doi.org/10.1145/3371158.3371196.
+[35] M. Assaduzzaman, P. Bishshash, Md.A.S. Nirob, A.A. Marouf, J.G. Rokne, R. Alhajj,
+       XSE-TomatoNet: an explainable AI based tomato leaf disease classification method          [58] A. Petchiammal, B.K.S. Murugan, P. Arjunan, Paddy doctor: a visual image dataset
+       using EfficientNetB0 with squeeze-and-excitation blocks and multi-scale feature                  for automated paddy disease classification and benchmarking, IEEE Dataport
+       fusion, MethodsX 14 (2025) 103159, https://doi.org/10.1016/j.                                    (2022), https://doi.org/10.21227/hz4v-af08.
+       mex.2025.103159.
+                                                                                                 [59] S. Duhan, P. Gulia, N.S. Gill, P.K. Shukla, S.B. Khan, A. Almusharraf, N. Alkhaldi,
+[36] H.-T. Thai, K.-H. Le, MobileH-Transformer: enabling real-time leaf disease                         Investigating attention mechanisms for plant disease identification in challenging
+       detection using hybrid deep learning approach for smart agriculture, Crop Prot.                  environments, Heliyon 10 (9) (2024) e29802, https://doi.org/10.1016/j.
+       189 (2025) 107002, https://doi.org/10.1016/j.cropro.2024.107002.                                 heliyon.2024.e29802.
+
+[37] M. Li, Z. Tao, W. Yan, S. Lin, K. Feng, Z. Zhang, Y. Jing, Apnet: Lightweight               [60] M. Tan, Q. Le, EfficientNetV2: Smaller Models and Faster Training, in: M. Meila, T.
+       network for apricot tree disease and pest detection in real-world complex                        Zhang (Eds.), Proceedings of the 38th International Conference on Machine
+       backgrounds, Plant Methods 21 (1) (2025) 4, https://doi.org/10.1186/s13007-                      Learning, PMLR 139 (2021) 10096­10106, https://proceedings.mlr.press/v139
+       025-01324-5.                                                                                     /tan21a.html.
+
+[38] K. Joshi, S. Hooda, A. Sharma, H. Sonah, R. Deshmukh, N. Tuteja, S.S. Gill, R. Gill,        [61] A. Dosovitskiy, L. Beyer, A. Kolesnikov, D. Weissenborn, X. Zhai, T. Unterthiner,
+       Precision diagnosis of tomato diseases for sustainable agriculture through deep                  M. Dehghani, M. Minderer, G. Heigold, S. Gelly, J. Uszkoreit, N. Houlsby, Image Is.
+       learning approach with hybrid data augmentation, Curr. Plant Biol. 41 (2025)                     Worth 16x16 Words: Transform. Image Recognit. Scale (2021), https://doi.org/
+       100437, https://doi.org/10.1016/j.cpb.2025.100437.                                               10.48550/arXiv.2010.11929.
+
+[39] D. Misra, T. Nalamada, A.U. Arasanipalai, Q. Hou, Rotate to attend: Convolutional           [62] A. Singla, A. Nehra, K. Joshi, A. Kumar, N. Tuteja, R.K. Varshney, S.S. Gill, R. Gill,
+       triplet attention module, in: Proc. IEEE/CVF Winter Conf. Appl. Comput. Vis.                     Exploration of machine learning approaches for automated crop disease detection,
+       Waikoloa, HI, USA, 2021, pp. 3138-3147, https://doi.org/10.1109/                                 Curr. Plant Biol. 40 (2024) 100382, https://doi.org/10.1016/j.cpb.2024.100382.
+       WACV48630.2021.00318.
+                                                                                                 [63] A. Gamage, R. Gangahagedara, S. Subasinghe, J. Gamage, C. Guruge, S. Senaratne,
+[40] J. Hu, L. Shen, G. Sun, Squeeze-and-Excitation Networks, 2018 IEEE/CVF                             T. Randika, C. Rathnayake, Z. Hameed, T. Madhujith, O. Merah, Advancing
+       Conference on Computer Vision and Pattern Recognition, Salt Lake City, UT, USA,                  sustainability: the impact of emerging technologies in agriculture, Curr. Plant Biol.
+       2018, pp.7132-7141, https://doi.org/10.1109/CVPR.2018.00745.                                     40 (2024) 100420, https://doi.org/10.1016/j.cpb.2024.100420.
+
+[41] Y. Li, X. Bai, C. Xia, An improved YOLOV5 based on triplet attention and prediction         [64] A. Upadhyay, N.S. Chandel, K.P. Singh, S.K. Chakraborty, B.M. Nandede,
+       head optimization for marine organism detection on underwater mobile platforms,                  M. Kumar, A. Subeesh, K. Upendar, A. Salem, A. Elbeltagi, Deep learning and
+       J. Mar. Sci. Eng. 10 (9) (2022) 1230, https://doi.org/10.3390/jmse10091230.                      computer vision in plant disease detection: a comprehensive review of techniques,
+                                                                                                        models, and trends in precision agriculture, Artif. Intell. Rev. 58 (3) (2025) 92,
+[42] J. Ye, Z. Yuan, C. Qian, X. Li, CAA-YOLO: combined-attention-augmented YOLO for                    https://doi.org/10.1007/s10462-024-11100-x.
+       infrared ocean ships detection, Sensors 22 (10) (2022) 3782, https://doi.org/
+       10.3390/s22103782.
+
+                                                                                             23
+
