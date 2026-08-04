@@ -1,0 +1,102 @@
+                                                       MT S GÓP Ý
+                                                    (TS. Phùng Th Bo)
+1. Không nht quán v s liu trong tuyên b ci thin chính so vi mô hình gc
+Mc 4.2 vit: "The seed-controlled gain over the already-strong original is small but consistent, +0.36 pp
+mean-to-mean (98.93% vs. 98.57%)" - câu này ang so sánh ChiliEdgeNet vi RTR_Lite_MobileNet ("the
+already-strong original", mô hình nn tng mà bài báo k tha). Tuy nhiên, theo chú thích ca Bng 1, con s
+98,57% li chính là three-seed mean ca BN THÂN ChiliEdgeNet  kch bn baseline (không augment), còn
+98,93% là three-seed mean ca ChiliEdgeNet  kch bn augmented - tc ây là hai con s SO SÁNH NI
+B gia hai kch bn hun luyn ca cùng mt mô hình  xut, không phi so sánh vi RTR_Lite_MobileNet.
+Trong khi ó, RTR_Lite_MobileNet (Bng 1, dòng 2) ch có kt qu mt ln chy: 97,32% (baseline) và
+98,12% (augmented). Nu phép so sánh "gain over the original" c tính úng theo các con s ã công b,
+kt qu s khác áng k so vi +0,36 im phn trm c nêu (ví d 98,93% so vi 98,12% là +0,81 im
+phn trm; hoc 99,20% so vi 98,12% là +1,08 im phn trm). ây là mt im KHÔNG NHT QUÁN
+cn c tác gi rà soát và sa li cho chính xác.
+2. Thiu ablation  mc tng k thut cu thành (2D-RoPE, GQA, RMSNorm)
+óng góp k thut ct lõi trong tiêu , tóm tt và phn gii thiu là vic tích hp BA k thut hiu qu tham
+s vn có ngun gc t LLM (2D-RoPE, GQA, RMSNorm) vào khi Transformer. Tuy nhiên, ablation trong
+Mc 4.3 ch thc hin  mc khi ln (toàn b Tiny Transformer so vi các khi CNN attention), mà KHÔNG
+có thc nghim tách riêng vai trò ca tng k thut trong s ba k thut này. C th, các câu hi sau cha c
+tr li:
+  · Nu thay 2D-RoPE bng learned/absolute positional embedding thông thng,  chính xác thay i ra
+      sao?
+  · Nu thay GQA bng multi-head attention tiêu chun (không chia s key/value),  chính xác và s tham
+      s thay i ra sao - liu GQA có thc s cn thit  quy mô mô hình nh nh th này, ni u im v b
+      nh ca GQA (vn c thit k cho LLM c ln) có th không còn rõ rt?
+  · Nu thay RMSNorm bng LayerNorm tiêu chun,  chính xác và  n nh hun luyn thay i ra
+      sao?
+Cn b sung  làm rõ "tích hp ba k thut hiu qu tham s" nh tên gi và tóm tt ca bài báo ã nhn
+mnh.
+3. So sánh vi mô hình nn tng (RTR_Lite_MobileNet) cha cân xng v  cht ch thng kê
+Mô hình  xut c chy 3 seed và báo cáo mean ± SD, trong khi RTR_Lite_MobileNet - phép so sánh
+quan trng nht vì ây chính là kin trúc nn tng mà ChiliEdgeNet k tha và ci tin - ch c chy MT
+ln (single-run), ging nh 26 cu hình baseline còn li. iu này khin mc ci thin tuyt i (khong 0,8­
+1,1 im phn trm tùy theo cách tính, xem Mc 3.1) không có c lng phng sai  i chiu, trong khi
+bn thân SD ca ChiliEdgeNet qua 3 seed ã là 0,27­0,41 im phn trm - cùng bc  ln vi mc ci thin
+c báo cáo. Nên chy RTR_Lite_MobileNet vi cùng 3 seed (ít nht là phép so sánh này, do ây là baseline
+quan trng nht)  có th khng nh chc chn hn rng mc ci thin là thc cht ch không nm trong
+biên  dao ng ngu nhiên gia các ln chy.
+4. Ablation "knockout" o lng s ph thuc, không o óng góp biên - cn b sung ablation hun luyn li
+Bài báo nêu rõ gii hn này (Mc 4.3, on cui), tuy nhiên, v mt yêu cu bình duyt, mt ablation kiu
+retrain-from-scratch (hun luyn li mô hình sau khi loi b tng khi, thay vì ch thay bng identity mapping
+trên mng ã hun luyn) vn là tiêu chun k vng  hu ht tp chí AI  khng nh giá tr thc s ca mt
+thành phn kin trúc. Hin ti nghiên cu  vic này li "future work", nhng vì ây là ablation DUY NHT
+trong bài, và Tiny Transformer là thành phn ct lõi ca óng góp, nên ít nht cn b sung MT ablation hun
+luyn li (ví d: ChiliEdgeNet không có Tiny Transformer, hun luyn li t u, so sánh  chính xác t
+c ti a) trc khi công b chính thc, thay vì ch da vào knockout  thi im suy lun.
+5. Khong cách min (domain gap) gia nh chp studio nn trng và iu kin chp thc t ngoài ng
+Mc 3.1 mô t nh trong ChiliEdge-DS c "chp trên nn trng  làm ni bt vùng bnh" ("photographed
+against a white background to make the diseased region stand out"). ây là iu kin chp nh có kim soát
+(studio-like), khác bit áng k so vi iu kin thc t mà mt nông dân s chp bng in thoi ngoài ng
+rung - ni có nn lá/t phc tp, ánh sáng t nhiên thay i, góc chp không c nh, và có th có nhòe/rung
+nh. Trong khi mc tiêu ca bài báo (Mc 1, Gii thiu) là "farmers need a diagnostic tool that runs directly
+on an edge device" ngoài ng rung thc t,  chính xác 99,20% t c trên nh nn trng có kim soát
+CÓ TH KHÔNG phn ánh úng hiu nng khi trin khai thc t. ây là mt khong trng quan trng cn
+c tho lun rõ ràng nh mt gii hn, và tt nht là b sung th nghim trên mt tp nh có nn t
+nhiên/ngoài ng (dù vi s lng nh)  ánh giá s b  suy gim hiu nng khi chuyn min.
+6. Tp test rt nh, không có cross-validation - chênh lch gia các mô hình có th nm trong biên  nhiu
+Tp test ch có 373 nh cho 5 lp, và mô hình  xut ch sai 3 nh (tng ng mi nh sai/úng làm thay i
+khong 0,27 im phn trm accuracy). Vi  phân gii nh vy, mc chênh lch 0,3­1 im phn trm c
+dùng  xp hng gia nhiu mô hình trong Bng 1 ch tng ng vi 1­4 nh khác bit - rt d nm trong
+biên  nhiu ngu nhiên ca mt ln chia d liu. Bài báo ch dùng MT ln chia train/val/test c nh (single
+split), không có k-fold cross-validation, và không có khong tin cy hoc kim nh thng kê nào cho các so
+sánh trong Bng 1. Nên cân nhc b sung ít nht kim nh khong tin cy (ví d Wilson score interval cho
+accuracy vi n = 373) hoc lp li vic chia d liu (nu tài nguyên cho phép)  tng  tin cy ca vic xp
+hng "ng u trong 27 cu hình".
+7. Phn Related Work còn s lc so vi quy mô so sánh thc nghim (27 cu hình t 15 nghiên cu)
+Mc 2 (Related Work) ch có mt on vn ngn, phân loi các hng nghiên cu liên quan thành bn nhóm
+chung chung (CNN nh, ViT, hybrid, so sánh rng), mà không tho lun c th phng pháp ca tng nghiên
+cu trong s 15 nghiên cu c dùng làm baseline  Bng 1. Vi quy mô so sánh thc nghim ln nh vy
+(27 cu hình), phn liên quan cn c m rng : 1. mô t ngn gn ý tng chính ca mt s nghiên cu
+tiêu biu c chn làm baseline; 2. nêu rõ tiêu chí la chn 15 nghiên cu này (ví d: phm vi tìm kim tài
+liu, tiêu chí a vào/loi tr, khong thi gian xut bn)  ngi c/phn bin có th ánh giá tính i din
+ca nhóm baseline c chn, tránh nghi ng v thiên lch la chn (selection bias) trong vic chn baseline.
+8. Thiu thông tin v phân b lp và phn cng suy lun
+
+  · Cha thy s lng nh c th theo tng lp trong 5 lp (anthracnose, healthy, leaf_curl, leaf_spot,
+      yellow_leaf) - ch có tng s theo tp train/val/test. Cn b sung bng phân b lp  ngi c ánh giá
+      c mc  mt cân bng và  tin cy ca Macro-F1/Macro-Recall.
+
+  · Thi gian suy lun 22,9 ms/nh c nêu nhiu ln (tóm tt, kt lun) nhng KHÔNG thy cu hình
+      CPU c th (model CPU, s lõi, xung nhp) c nêu trong phn Setup (Mc 4.1) -- ch có cu hình
+      GPU Kaggle (Tesla T4) dùng cho hun luyn. ây là thông tin bt buc  m bo kh nng tái lp ca
+      con s hiu nng suy lun vn là mt im nhn quan trng ca bài báo ("runs fully offline on a CPU at
+      22.9 ms/image").
+
+9. Các vn  nh v hình thc
+  · ánh s Bng/Hình b lp: c ba bng thc nghim u c chú thích là "Table 1" (Bng so sánh SOTA,
+      Bng ablation, Bng so sánh vi Gemini), trong khi phn vn bn li tham chiu "Table 2" và "Table 3"
+      cho hai bng sau. Tng t, c hai hình XAI u c chú thích là "Fig. 1" (Grad-CAM và Attention
+      Rollout). Cn rà soát và cp nht li toàn b s th t Bng/Hình trong file gc trc khi np.
+  · Cm t "92× faster than a vision LLM" (92 ln nhanh hn) so sánh thi gian suy lun cc b (22,9 ms)
+      vi thi gian round-trip ca mt API ám mây (2.117 ms), vn bao gm c  tr mng và hàng i phía
+      máy ch, không ch thun thi gian tính toán ca mô hình. Nên ghi chú rõ ây là so sánh  tr h thng
+      (system-level latency), không phi so sánh thun túy tc  suy lun ca hai kin trúc mô hình,  tránh
+      gây hiu lm.
+  · Cm "Trained end-to-end with no actual language model"  Mc 3.2 có cách din t hi khó hiu; nên
+      vit li rõ ràng hn, ví d: "mc dù vay mn ba k thut hiu qu tham s t kin trúc LLM,
+      ChiliEdgeNet hoàn toàn là mt mô hình th giác, không có bt k thành phn ngôn ng nào".
+· Tên mô hình Vision-LLM dùng so sánh ("Gemini 3.1 Flash Lite") nên có ghi chú ngày truy cp/phiên
+   bn API c th, vì các mô hình thng mi dng này thng c cp nht liên tc theo thi gian, nh
+   hng n kh nng tái lp kt qu so sánh.
+

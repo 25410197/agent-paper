@@ -1,0 +1,46 @@
+Ghi chú nguồn cho thí nghiệm cross-dataset/few-shot mới
+======================================================
+
+Nguồn duy nhất:
+
+- Md Asraful Sharker Nirob, A K M Fazlul Kobir Siam, Prayma Bishshash, Md Assaduzzaman.
+- "Chili Plant Leaf Disease and Growth Stage Dataset from Bangladesh."
+- Mendeley Data, version 1, published 19 February 2025.
+- DOI: 10.17632/w9mr3vf56s.1
+- URL: https://data.mendeley.com/datasets/w9mr3vf56s/1
+- License: CC BY 4.0.
+
+Thư mục dữ liệu gốc cục bộ:
+
+`D:\ds\Chili Leaf Disease Original Dataset\Chili Leaf Disease Original Dataset`
+
+Ánh xạ bốn lớp được sử dụng:
+
+- `Cercospora Leaf Spot` -> `leaf_spot`
+- `Curl Virus` -> `leaf_curl`
+- `Healthy Leaf` -> `healthy`
+- `Nutrition Deficiency` -> `yellow_leaf`
+
+Không sử dụng:
+
+- `Bacterial Spot` và `White spot`: ChiliEdgeNet không có nhãn đích tương ứng.
+- `anthracnose`: bộ Mendeley Data này không có lớp thán thư; không tạo hàng ground-truth cho lớp này. Đầu ra `anthracnose` của mô hình vẫn được giữ và dự đoán sang lớp này vẫn phải tính là sai.
+
+Tập support few-shot cục bộ:
+
+`D:\ds\new_ds`
+
+- `healthy`: 8 ảnh
+- `leaf_curl`: 9 ảnh
+- `leaf_spot`: 16 ảnh
+- `yellow_leaf`: 9 ảnh
+- Tổng: 42 ảnh
+
+Kiểm toán ngày 04/08/2026:
+
+- `D:\ds\test` hiện có 1.463 ảnh: 450 `healthy`, 414 `leaf_curl`, 164 `leaf_spot`, 435 `yellow_leaf`.
+- Ảnh `Cercospora Leaf Spot00176.JPG` (SHA-256 `3541173176666ad9d5ecd99ed50cb92858d08757c4f9e4fb0b6c955d8b3d288f`) đã được loại khỏi query vì thuộc support.
+- Query được tạo từ 1.505 ảnh của bốn lớp, loại đúng toàn bộ 42 ảnh support bằng SHA-256; kiểm toán xác nhận giao support/query bằng 0, không thiếu và không thừa hash.
+- Các manifest tái lập nằm tại `outputs/results/cross_dataset_manifests_v2`.
+- Hai checkpoint cùng dùng seed 42 và đã được đánh giá lại trên query sạch: checkpoint gốc đạt 30,96% (453/1.463), checkpoint few-shot đạt 89,75% (1.313/1.463).
+- Prediction từng ảnh, metric theo lớp và McNemar ghép cặp ($b=870$, $c=10$, $p=1{,}83\times10^{-242}$) đã được lưu trong metadata của gói query.

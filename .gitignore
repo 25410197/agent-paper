@@ -4,6 +4,15 @@
 # Output notebooks and artifacts
 outputs/
 
+# Exception: track papers/05_RTR-Lite-MobileNet/outputs/build_conference/ (paper-writing
+# source: vn/, en/, notebooks, docx build scripts...) but keep the rest of that paper's
+# outputs/ ignored, and keep the heavy downloaded datasets inside build_conference ignored too.
+!papers/05_RTR-Lite-MobileNet/outputs/
+papers/05_RTR-Lite-MobileNet/outputs/*
+!papers/05_RTR-Lite-MobileNet/outputs/build_conference
+papers/05_RTR-Lite-MobileNet/outputs/build_conference/data_2021/
+papers/05_RTR-Lite-MobileNet/outputs/build_conference/data_moi/
+
 # Python
 __pycache__/
 *.py[cod]
