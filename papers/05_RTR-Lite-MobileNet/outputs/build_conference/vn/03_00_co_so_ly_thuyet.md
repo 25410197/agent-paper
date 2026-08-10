@@ -96,7 +96,7 @@ RMSNorm chuẩn hóa theo căn trung bình bình phương thay vì trừ trung b
 =g_i\frac{x_i}{\sqrt{\frac{1}{d}\sum_{j=1}^{d}x_j^2+\varepsilon}},
 \]
 
-trong đó (g_i) là hệ số scale học được và (arepsilon=10^{-6}). Hiện thực không có bias dịch chuyển. ChiliEdgeNet có ba vị trí chuẩn hóa chiều 128, vì vậy RMSNorm tránh (3\times128=384) tham số bias so với ba LayerNorm tương ứng. Đây là khác biệt cấu trúc chính xác; hiệu quả accuracy của RMSNorm vẫn phải được xác nhận bằng ablation thay vì suy ra trực tiếp từ công thức.
+trong đó (g_i) là hệ số scale học được và (\varepsilon=10^{-6}). Hiện thực không có bias dịch chuyển. ChiliEdgeNet có ba vị trí chuẩn hóa chiều 128, vì vậy RMSNorm tránh (3\times128=384) tham số bias so với ba LayerNorm tương ứng. Đây là khác biệt cấu trúc chính xác; hiệu quả accuracy của RMSNorm vẫn phải được xác nhận bằng ablation thay vì suy ra trực tiếp từ công thức.
 
 ### 2.5. Học chuyển giao và thích nghi miền ít mẫu
 

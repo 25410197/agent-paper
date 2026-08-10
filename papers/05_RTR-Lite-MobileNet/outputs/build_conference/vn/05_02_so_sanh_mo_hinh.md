@@ -1,6 +1,6 @@
 ### 4.2. So sánh với các mô hình tiên tiến
 
-Với seed 42, ChiliEdgeNet đạt **97,86%** trong kịch bản baseline và **98,93%** trong kịch bản augmented. Macro-F1 tương ứng là 0,9790 và 0,9897; số ảnh dự đoán đúng lần lượt là 365 và 369 trên 373 ảnh sạch.
+Với seed 42, ChiliEdgeNet đạt **97,86%** trong kịch bản baseline và **98,93%** trong kịch bản augmented. Macro-F1 tương ứng là 0,9790 và 0,9897.
 
 Tổng cộng 17 baseline từ 15 nghiên cứu gần đây được phục dựng, đánh giá trong cùng một khung và trình bày đầy đủ trong Bảng 3. Vì các baseline chỉ được chạy một lần và không được tinh chỉnh riêng cho ChiliEdge-DS, bảng này phản ánh kết quả dưới cùng dữ liệu, lần chia và độ đo, không phải bảng xếp hạng tuyệt đối giữa các kiến trúc.
 
@@ -39,11 +39,11 @@ ChiliEdgeNet sử dụng **671.173 tham số**, trong khi RTR_Lite_MobileNet s�
 
 #### 4.2.2. Phân tích lỗi
 
-Trong kịch bản augmented, ChiliEdgeNet dự đoán sai **4 trên 373 ảnh**:
+Trong kịch bản augmented, ChiliEdgeNet dự đoán sai các ảnh sau:
 
 - một ảnh `leaf_spot` bị dự đoán thành `healthy`;
 - ba ảnh `yellow_leaf` bị dự đoán thành `leaf_curl`.
 
 Accuracy đạt 98,93% với khoảng tin cậy Wilson 95% **[97,28%; 99,58%]**. Các lỗi còn lại tập trung tại ranh giới giữa triệu chứng vàng lá và xoăn lá.
 
-![Hình 1. Ma trận nhầm lẫn của ChiliEdgeNet trên tập test trong kịch bản augmented.](../../results/notebook_c1/c14_cm_s2.png)
+![Hình 2. Ma trận nhầm lẫn của ChiliEdgeNet trên tập test trong kịch bản augmented.](../../results/notebook_c1/c14_cm_s2.png)

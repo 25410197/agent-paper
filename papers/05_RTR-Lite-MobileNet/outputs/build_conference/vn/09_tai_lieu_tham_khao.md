@@ -20,7 +20,7 @@ Google DeepMind, 2026. Gemini 3.1 Flash-Lite: Model Card. https://deepmind.googl
 
 [dataset] Hải, T.M., 2026b. Chili Leaf Disease Few-Shot, Kaggle dataset version 1. Kaggle. https://www.kaggle.com/datasets/tminhhi/chili-leaf-disease-few-shot/version/1 (accessed 4 August 2026). Derived from Nirob et al. (2025); license: CC BY 4.0.
 
-[dataset] Hải, T.M., 2026c. ChiliEdge-DS: Chili Pepper Leaf Disease Dataset, version 1.0 (Kaggle dataset version 2). Kaggle. https://www.kaggle.com/datasets/tminhhi/ot-21-06/versions/2 (accessed 4 August 2026).
+[dataset] Hải, T.M., 2026c. ChiliEdge-DS: Chili Pepper Leaf Disease Dataset, version 1.0 (Kaggle dataset version 2). Kaggle. https://www.kaggle.com/datasets/tminhhi/ot-21-06/versions/2 (accessed 4 August 2026); license: not publicly licensed (all rights reserved by the author).
 
 Hemalatha, S., Jayachandran, J.J.B., 2024. A multitask learning-based vision transformer for plant disease localization and classification. International Journal of Computational Intelligence Systems 17 (1), 188. https://doi.org/10.1007/s44196-024-00597-3.
 

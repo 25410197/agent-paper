@@ -74,6 +74,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 # Sua noi dung o do, chay `python merge_sections.py` de sinh lai file tong
 # nay, roi moi chay script nay.
 MD = os.path.join(HERE, "en", "_BaoCao_Full_EN.md")
+MD_DIR = os.path.dirname(MD)  # image paths in the .md are relative to en/, not outputs/
 TEMPLATE_DOCM = os.path.join(ASSET_DIR, "template", "Springer_Template.docm")
 TEMPLATE_ASDOCX = os.path.join(ASSET_DIR, "template", "_Springer_Template_readable.docx")
 OUT = os.path.join(HERE, "ChiliEdgeNet.docx")
@@ -337,6 +338,9 @@ try:
         font = _get_font(bold)
         bbox = font.getbbox(text)
         return (bbox[2] - bbox[0]) / _FONT_SCALE * size_pt
+
+    _get_font(False)  # probe: force font load now so a missing-font OSError
+    _get_font(True)   # (e.g. non-Windows env) falls through to the estimator below
 except Exception:
     def text_width_pt(text, size_pt, bold=False):
         # fallback tho neu khong co PIL/font (uoc luong ~0.5pt/ky tu)
@@ -467,7 +471,7 @@ while i < n:
         text_lines = [l for l in block[:img_idx] if l.strip()]
         mimg2 = IMG.match(block[img_idx].strip())
         caption_raw2, path2, attr2 = mimg2.group(1), mimg2.group(2), mimg2.group(3)
-        abspath2 = os.path.join(ASSET_DIR, path2.replace("/", os.sep))
+        abspath2 = os.path.normpath(os.path.join(MD_DIR, path2.strip().strip("<>").replace("/", os.sep)))
 
         from docx.enum.table import WD_ALIGN_VERTICAL
         from docx.oxml import OxmlElement
@@ -543,9 +547,15 @@ while i < n:
         img_lines = [l.strip() for l in block if IMG.match(l.strip())]
 
         from docx.oxml import OxmlElement
+        import math
 
-        HALF_DXA = CONTENT_WIDTH_DXA // 2
-        t = doc.add_table(rows=1, cols=2)
+        # IMG2 was designed for exactly 2 images side by side; some blocks now
+        # hold 3+ images (e.g. XAI figures), so wrap to a 2-col grid with as
+        # many rows as needed instead of assuming a single row of 2 cells.
+        NCOLS = 2 if len(img_lines) >= 2 else 1
+        NROWS = max(1, math.ceil(len(img_lines) / NCOLS))
+        HALF_DXA = CONTENT_WIDTH_DXA // NCOLS
+        t = doc.add_table(rows=NROWS, cols=NCOLS)
         t.autofit = False
         tbl_pr = t._tbl.tblPr
         layout = OxmlElement("w:tblLayout"); layout.set(qn("w:type"), "fixed")
@@ -558,11 +568,12 @@ while i < n:
         for gc in grid.findall(qn("w:gridCol")):
             gc.set(qn("w:w"), str(HALF_DXA))
 
-        for col, img_line in enumerate(img_lines):
+        for idx, img_line in enumerate(img_lines):
+            row, col = idx // NCOLS, idx % NCOLS
             mimg2 = IMG.match(img_line)
             caption_raw2, path2, attr2 = mimg2.group(1), mimg2.group(2), mimg2.group(3)
-            abspath2 = os.path.join(ASSET_DIR, path2.replace("/", os.sep))
-            cell = t.cell(0, col)
+            abspath2 = os.path.normpath(os.path.join(MD_DIR, path2.strip().strip("<>").replace("/", os.sep)))
+            cell = t.cell(row, col)
             cell.width = Pt(HALF_DXA / 20)
 
             cell.paragraphs[0].text = ""
@@ -620,7 +631,7 @@ while i < n:
     mimg = IMG.match(line)
     if mimg:
         caption_raw, path, attr = mimg.group(1), mimg.group(2), mimg.group(3)
-        abspath = os.path.join(ASSET_DIR, path.replace("/", os.sep))
+        abspath = os.path.normpath(os.path.join(MD_DIR, path.strip().strip("<>").replace("/", os.sep)))
         p = doc.add_paragraph(style="image")
         if os.path.exists(abspath):
             p.add_run().add_picture(abspath, width=parse_img_width(attr))
@@ -794,11 +805,16 @@ while i < n:
         i += 1
         continue
 
-    # numbered list
-    mn = re.match(r"^\s*\d+\.\s+(.*)$", line)
+    # numbered list -- literal digit from source, style auto-numbering off
+    # (numitem's built-in numbering otherwise continues across unrelated
+    # lists elsewhere in the document, e.g. a later list starting at 8
+    # after an earlier 7-item list)
+    mn = re.match(r"^\s*(\d+)\.\s+(.*)$", line)
     if mn:
         p = doc.add_paragraph(style="numitem")
-        add_runs(p, mn.group(1))
+        suppress_style_numbering(p)
+        p.add_run(f"{mn.group(1)}. ")
+        add_runs(p, mn.group(2))
         prev_is_block_boundary = True
         i += 1
         continue

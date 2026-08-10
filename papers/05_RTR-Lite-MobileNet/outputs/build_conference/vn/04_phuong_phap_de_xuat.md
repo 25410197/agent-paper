@@ -8,7 +8,7 @@ Toàn bộ ảnh gốc trong ChiliEdge-DS do tác giả trực tiếp chụp và
 
 Các nhãn được tác giả gán thủ công theo biểu hiện thị giác: `anthracnose` có vùng tổn thương sẫm màu hoặc hoại tử phù hợp với biểu hiện thán thư; `healthy` không có triệu chứng quan sát rõ; `leaf_curl` có hiện tượng cong hoặc xoăn lá; `leaf_spot` có các đốm tổn thương rời rạc trên bề mặt lá; và `yellow_leaf` có biểu hiện vàng lá chiếm ưu thế. Đây là các nhãn kiểu hình dựa trên quan sát, không phải kết quả định danh tác nhân gây bệnh bằng xét nghiệm.
 
-> **Ghi chú biên tập:** cần chỉ định và ghi rõ giấy phép phát hành của ChiliEdge-DS tại nguồn (Hải, 2026c) trước khi nộp bài.
+ChiliEdge-DS được công bố công khai trên Kaggle (Hải, 2026c) nhưng không gắn license mở (mục license tại nguồn giữ ở trạng thái "Unknown"). Đây là lựa chọn có chủ đích của tác giả nhằm giữ toàn quyền kiểm soát việc tái sử dụng ảnh gốc do chính tác giả thu thập, không phải thiếu sót biên tập.
 
 Tỉ lệ giữa lớp lớn nhất và nhỏ nhất là 1,29, do đó nghiên cứu không áp dụng class weighting. Macro-F1 được báo cáo cùng accuracy để mỗi lớp đóng góp như nhau vào kết quả tổng hợp. Phông nền trắng là điều kiện thu thập có kiểm soát; khoảng cách với ảnh khác nguồn và nền cảnh được khảo sát tại Mục 4.5 và thảo luận tại Mục 5.
 
@@ -68,33 +68,14 @@ Kiến trúc nền tảng (Duhan et al., 2025) sử dụng thêm Triplet Attenti
 
 Sự cần thiết của Triplet Attention và `RES_Block` được khảo sát bằng thiết kế thêm-lại 2×2 gồm bốn cấu hình: có cả hai khối, chỉ Triplet Attention, chỉ `RES_Block`, và không có cả hai. Mỗi cấu hình được huấn luyện lại từ đầu với seed 42 theo cùng giao thức; kết quả và các tương phản loại bỏ được trình bày tại Mục 4.3. Trong lần chạy seed 42 này, việc thêm hai khối không cải thiện accuracy trong các tương phản được đánh giá, nên mô hình cuối không sử dụng chúng; kết quả không được diễn giải thành bằng chứng về tính ổn định giữa nhiều lần chạy hoặc về sự tương đương của hai kiến trúc.
 
+![Hình 1. Sơ đồ kiến trúc ChiliEdgeNet. Panel A: luồng xử lý tổng thể từ ảnh 224×224×3 qua backbone MobileNetV2 cắt ngắn (features[0:14]), Conv 1×1 giảm kênh, 196 token, khối Tiny Transformer, mean pooling và lớp phân loại, kèm kích thước tensor tại mỗi bước. Panel B: chi tiết một khối Tiny Transformer, gồm RMSNorm, Grouped Query Attention kết hợp 2D-RoPE dạng axial (4 query-head, 2 key/value-head) với residual, và MLP GELU (tỉ lệ mở rộng 2.0) với residual.](../../results/architecture/chiliedgenet_architecture.png)
+
 ### 3.3. Độ đo đánh giá
 
 Nghiên cứu báo cáo top-1 accuracy, macro-F1 và tổng số tham số. Mọi giá trị accuracy trên tập test đều đi kèm khoảng tin cậy Wilson 95% với (N = 373).
 
-[
-\text{Accuracy}
-===============
+$$\text{Accuracy} = \frac{1}{N}\sum_{i=1}^{N}\mathbf{1}(\hat{y}_i = y_i)$$
 
-\frac{1}{N}
-\sum_{i=1}^{N}
-\mathbf{1}(\hat{y}_i = y_i)
-]
+$$F1_c = 2 \cdot \frac{\text{Precision}_c \cdot \text{Recall}_c}{\text{Precision}_c + \text{Recall}_c}$$
 
-[
-F1_c
-====
-
-2 \cdot
-\frac{\text{Precision}_c \cdot \text{Recall}_c}
-{\text{Precision}_c + \text{Recall}_c}
-]
-
-[
-\text{Macro-F1}
-===============
-
-\frac{1}{C}
-\sum_{c=1}^{C}F1_c,
-\qquad C = 5
-]
+$$\text{Macro-F1} = \frac{1}{C}\sum_{c=1}^{C}F1_c,\qquad C = 5$$

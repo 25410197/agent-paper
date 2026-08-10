@@ -40,7 +40,7 @@ Không tương phản nào đạt ý nghĩa sau hiệu chỉnh Holm. Trong lần
 
 Stress test sử dụng cùng **373 ảnh test** và hai checkpoint seed 42: ChiliEdgeNet đầy đủ và biến thể huấn luyện lại sau khi bỏ Tiny Transformer. Gaussian blur được tạo bằng `cv2.GaussianBlur` với `sigmaX=0` tại các kernel 3, 5, 7 và 9; giảm sáng được tạo bằng cách nhân toàn bộ cường độ pixel với 0,8; 0,6; 0,4 và 0,2. Tám điều kiện được xác định trước khi chấm điểm. Ảnh sạch chỉ là mốc tham chiếu và không thuộc họ tám kiểm định; McNemar chính xác được hiệu chỉnh Holm trên tám điều kiện suy giảm.
 
-![Hình 2. Accuracy của ChiliEdgeNet có và không có Tiny Transformer theo mức nhòe Gaussian và hệ số giảm sáng tổng hợp.](../../results/stress/c14_tf_stress_curves.png)
+![Hình 3. Accuracy của ChiliEdgeNet có và không có Tiny Transformer theo mức nhòe Gaussian và hệ số giảm sáng tổng hợp.](../../results/stress/c14_tf_stress_curves.png)
 
 **Bảng 7. Stress test Tiny Transformer trên các mức suy giảm tổng hợp.** Delta dương nghĩa mô hình có Tiny Transformer tốt hơn.
 

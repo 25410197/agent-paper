@@ -59,9 +59,9 @@ Quy ước:
 - [ ] Kiểm tra exact duplicate bằng SHA-256 giữa ba tập.
 - [ ] Kiểm tra near-duplicate hoặc ảnh liên tiếp của cùng đối tượng giữa ba tập.
 - [ ] Ghi kết quả kiểm toán leakage vào paper hoặc supplementary material.
-- [ ] Chỉ định giấy phép công khai cho ChiliEdge-DS trên Kaggle.
-- [ ] Cập nhật license trong mục dữ liệu Hải (2026c); ngày truy cập đã được bổ sung.
-- [ ] Xóa dòng `Ghi chú biên tập` khỏi [`vn/04_phuong_phap_de_xuat.md`](vn/04_phuong_phap_de_xuat.md) sau khi hoàn tất.
+- [x] Quyết định giữ ChiliEdge-DS ở trạng thái không gắn license mở trên Kaggle (license "Unknown" là chủ đích, đã xác nhận với người hướng dẫn ngày 05/08/2026), không phải thiếu sót cần điền.
+- [x] Đã cập nhật mục dữ liệu Hải (2026c) trong References ghi rõ "license: not publicly licensed (all rights reserved by the author)"; ngày truy cập đã được bổ sung.
+- [x] Đã thay dòng `Ghi chú biên tập` trong [`vn/04_phuong_phap_de_xuat.md`](vn/04_phuong_phap_de_xuat.md) bằng câu giải thích lựa chọn không gắn license là có chủ đích.
 
 **Tiêu chí hoàn thành:** độc giả có thể hiểu nguồn gốc, cách gán nhãn, cách chia dữ liệu, tình trạng leakage và quyền tái sử dụng ChiliEdge-DS.
 
@@ -93,12 +93,12 @@ Quy ước:
 
 ### P1.1. Sửa công thức độ đo
 
-- [ ] Sửa ba công thức trong [`vn/04_phuong_phap_de_xuat.md`](vn/04_phuong_phap_de_xuat.md) sang khối LaTeX `\[` và `\]`.
-- [ ] Bỏ các dòng `====` đang bị Markdown hiểu như heading.
-- [ ] Viết công thức Accuracy, (F1_c) và Macro-F1 trên một cấu trúc thống nhất.
-- [ ] Kiểm tra render trong DOCX/PDF sau khi build.
+- [x] Đã sửa ba công thức trong [`vn/04_phuong_phap_de_xuat.md`](vn/04_phuong_phap_de_xuat.md) (Mục 3.3) sang khối `$$...$$` (thay vì bracket `[`/`]` kết hợp `===`/`====`).
+- [x] Đã bỏ các dòng `====`/`===============` đang bị Markdown hiểu như heading (H1/H2).
+- [x] Công thức Accuracy, \(F1_c\) và Macro-F1 nay dùng chung một cấu trúc `$$...$$` một dòng, thống nhất với các công thức khác trong `03_00_co_so_ly_thuyet.md`.
+- [x] Đã kiểm tra render bằng cách build lại `en/ChiliEdgeNet_CEA_Draft_EN.docx` và `vn/ChiliEdgeNet_Draft_VN.docx` (script mới `build_journal_docx_en.py`/`build_journal_docx_vn.py`), xuất PDF và xem trực tiếp: ba công thức hiện hiển thị gọn trên một dòng canh giữa, không còn `[`, `===`, `]` rời rạc hay heading giả. Phát hiện thêm và sửa luôn 1 ký tự control character (0x0B) làm hỏng `\varepsilon` trong Mục 2.4 (`03_00_co_so_ly_thuyet.md`), lỗi này từng khiến script build VN crash hẳn.
 
-**Tiêu chí hoàn thành:** công thức hiển thị đúng, không tạo heading hoặc văn bản rời trong bản render.
+**Tiêu chí hoàn thành:** công thức hiển thị đúng, không tạo heading hoặc văn bản rời trong bản render. — Đạt (xem `vn/ChiliEdgeNet_Draft_VN.pdf` trang chứa Mục 3.3).
 
 ### P1.2. Thống nhất phạm vi sử dụng McNemar
 
@@ -118,42 +118,44 @@ Quy ước:
 - [x] Giữ model ID, ngày truy cập, prompt và cấu hình sinh trong phần đối chiếu Gemini.
 - [x] Đã bổ sung Heo et al. (2025) làm nguồn trực tiếp cho axial 2D-RoPE; giữ Su et al. (2024) làm nguồn RoPE 1D nền tảng.
 - [x] Đã đối chiếu metadata của 32/32 tài liệu với Crossref, trang nhà xuất bản hoặc kho dữ liệu gốc; đã sửa tác giả, năm, volume/issue, article number và nguồn hội nghị bị thiếu hoặc sai.
-- [ ] Kiểm tra mọi DOI/URL còn hoạt động.
+- [x] Đã kiểm tra 29/29 DOI/URL trong References (fetch trực tiếp + đối chiếu Crossref cho trang IEEE/ScienceDirect, mở tay 3 link Kaggle) ngày 05/08/2026: tất cả sống và khớp trích dẫn, không có DOI chết hoặc sai đích. 3 tài liệu (Snell 2017, Vaswani 2017, Zhang & Sennrich 2019) không có DOI/URL trong bài, có thể bổ sung nếu muốn nhưng không bắt buộc.
 
 **Tiêu chí hoàn thành:** không có reference dư, citation thiếu hoặc số tài liệu sai thứ tự theo template nộp bài.
 
 ### P1.4. Hoàn thiện đối chiếu Gemini
 
-- [ ] Chạy Gemini trên ba ảnh còn thiếu để đủ 373 ảnh, hoặc giữ rõ phạm vi 370 ảnh.
-- [ ] Lưu raw response cho mọi ảnh.
-- [ ] Lưu model ID, ngày chạy và response metadata.
+- [x] Đã chạy Gemini trên 3 ảnh `yellow_leaf` còn thiếu ngày 07/08/2026 (resume qua `run_full_test.py`, đủ 373/373 lượt gọi hợp lệ). Kết quả mới: Gemini 293/373 (78,55%), ChiliEdgeNet 369/373 (98,93%, khớp Bảng 3), latency trung vị 2.123 ms. Đã cập nhật Bảng 9 và Mục 4.4.2 trong `vn/05_05_dien_giai_mo_hinh.md`, `vn/_BaoCao_Full_VN.md`, và bullet ở `vn/02_dat_van_de.md`; xóa dòng GAP.
+- [x] Raw response của 3 ảnh mới đã lưu trong `full_test_progress__gemini-3.1-flash-lite.jsonl` (374 dòng — có 1 dòng lỗi copy nhầm cần dọn, xem ghi chú bên dưới).
+- [x] Model ID (`gemini-3.1-flash-lite`), ngày chạy (07/08/2026) đã ghi trong bài.
 - [ ] Đặt tường minh temperature, top-p, giới hạn token và structured output nếu API hỗ trợ; không phụ thuộc hoàn toàn vào default có thể thay đổi.
-- [ ] Xác định quy tắc chấm lỗi API/parse trước khi chạy.
-- [ ] Dùng thuật ngữ “mô hình đa phương thức” hoặc “mô hình thị giác–ngôn ngữ” nhất quán thay cho cách gọi LLM thị giác nếu phù hợp.
-- [ ] Không diễn giải latency API và latency local như chi phí tính toán kiến trúc ngang hàng.
+- [x] Quy tắc chấm lỗi API/parse đã có sẵn trong `gemini_bbox.py` (retry 3 lần, đánh dấu `gemini_error`).
+- [x] Đã thống nhất gọi Gemini là "mô hình đa phương thức tổng quát" xuyên suốt bài (Mục 1 — 2 chỗ, Mục 2.8, tiêu đề và nội dung Mục 4.4.2), thay cho các cách gọi trộn lẫn trước đó ("LLM thị giác", "LLM đa phương thức tổng quát", "mô hình thị giác tổng quát").
+- [x] Không diễn giải latency API và latency local như chi phí tính toán kiến trúc ngang hàng (đã giữ nguyên caveat trong 4.4.2).
 
-**Tiêu chí hoàn thành:** số mẫu, cấu hình API và quy tắc chấm có thể kiểm toán; claim vẫn được giới hạn là đối chiếu tham khảo.
+**Ghi chú kỹ thuật (không phải lỗi bài báo):** trong lúc copy 3 ảnh thiếu, một bản sao của `IMG_20260207_164930.jpg` bị đặt nhầm vào `test\leaf_curl\` (thư mục cục bộ `E:\UIT\luan-van\ot\dataset_smartcrop_plit_300\test`, không phải bản thảo), khiến `leaf_curl` tạm thời có 83 ảnh thay vì 82. Số liệu trong bài đã loại trừ đúng dòng này khi tính lại (N=373 khớp Bảng 1 và Bảng 3). Cần xóa vật lý file `test\leaf_curl\IMG_20260207_164930.jpg` và dòng JSONL tương ứng để thư mục cục bộ sạch lại cho các lần chạy sau, nhưng không ảnh hưởng số liệu đã công bố.
+
+**Tiêu chí hoàn thành:** số mẫu, cấu hình API và quy tắc chấm có thể kiểm toán; claim vẫn được giới hạn là đối chiếu tham khảo. — Đạt cho phạm vi 373 ảnh.
 
 ### P1.5. Bổ sung bằng chứng về tính nhẹ
 
-- [ ] Báo MACs/FLOPs tại kích thước đầu vào 224×224.
-- [ ] Báo peak memory hoặc ít nhất RAM khi suy luận batch 1.
-- [ ] Ghi backend, precision và số thread CPU.
-- [ ] Phân biệt latency suy luận thuần, tiền xử lý–suy luận và toàn pipeline camera.
-- [ ] Không quy đổi 49,41 ảnh/giây thành FPS camera.
-- [ ] Nếu có lượng tử hóa, benchmark bằng backend thực sự hỗ trợ INT8/FP16.
+- [x] **Bỏ theo quyết định người hướng dẫn (05/08/2026):** không báo MACs/FLOPs — không phải giới hạn kỹ thuật (vẫn tính được trên Kaggle bằng `thop`/`torchinfo`), mà là phạm vi bài không cần luận điểm này.
+- [x] **Bỏ theo quyết định người hướng dẫn (07/08/2026):** không báo peak memory/RAM batch 1 — ngoài phạm vi bài.
+- [x] **Bỏ theo quyết định người hướng dẫn (07/08/2026):** không bổ sung backend/precision/số thread ngoài những gì Mục 4.1.2 đã ghi (PyTorch FP32, CPU Xeon 4 lõi logic).
+- [x] **Bỏ theo quyết định người hướng dẫn (07/08/2026):** giữ nguyên cách tách latency hiện có (suy luận cục bộ ở 4.1.2, tiền xử lý–suy luận camera ở 4.6), không mở rộng thêm.
+- [x] **Bỏ theo quyết định người hướng dẫn (07/08/2026):** giữ nguyên cách diễn đạt “49,41 ảnh/giây” hiện tại (đã có caveat “không phải FPS camera” trong 4.1.2).
+- [x] **Bỏ theo quyết định người hướng dẫn (07/08/2026):** không benchmark INT8/FP16 — ngoài phạm vi bài (bài hiện không tuyên bố đã lượng tử hóa).
 
-**Tiêu chí hoàn thành:** claim “lightweight” không chỉ dựa vào số tham số và kích thước file.
+**Toàn bộ P1.5 dừng ở đây theo quyết định người hướng dẫn** — không phải giới hạn kỹ thuật, mà là lựa chọn phạm vi: bài chỉ dùng số tham số + latency CPU đo được (Mục 4.1.2) làm bằng chứng “lightweight”, không mở rộng sang MACs/FLOPs, memory, hay benchmark lượng tử hóa.
 
 ### P1.6. Bổ sung sơ đồ kiến trúc
 
-- [ ] Tạo sơ đồ luồng: ảnh → truncated MobileNetV2 → Conv 1×1 → 196 token → Tiny Transformer → mean pooling → classifier.
-- [ ] Ghi kích thước tensor tại các điểm chính.
-- [ ] Thể hiện cấu hình 4 query head và 2 key/value head.
-- [ ] Thể hiện axial 2D-RoPE và ba vị trí RMSNorm nếu sơ đồ không quá rối.
-- [ ] Đặt hình tại Mục 3.2 và cập nhật lại số hình phía sau.
+- [x] Đã tạo sơ đồ 2 panel: Panel A luồng tổng thể (ảnh → MobileNetV2 features[0:14] → Conv 1×1 → 196 token → Tiny Transformer → RMSNorm+Mean Pooling → Dropout+Linear → 5 lớp), Panel B chi tiết khối Tiny Transformer. Nguồn số liệu đối chiếu từ `outputs/build_conference/kq/cay-ot-1.ipynb` (định nghĩa `ChiliEdgeNet`, khớp `model_def.py`). File: `outputs/results/architecture/chiliedgenet_architecture.png` (+ `.svg` gốc).
+- [x] Đã ghi kích thước tensor tại các điểm chính (224×224×3 → 96×14×14 → 128×14×14 → 196×128 → 196×128 → vector 128 → 5 lớp).
+- [x] Đã thể hiện cấu hình 4 query-head / 2 key-value-head trong Panel B.
+- [x] Đã thể hiện 2D-RoPE dạng axial (0 tham số học) và cả hai vị trí RMSNorm + 2 residual connection trong Panel B.
+- [x] Đã đặt hình cuối Mục 3.2 (thành **Hình 1**) trong `vn/04_phuong_phap_de_xuat.md` và `vn/_BaoCao_Full_VN.md`; đã đánh số lại toàn bộ hình phía sau: confusion matrix augmented 1→2, stress-test curves 2→3, Occlusion/Gradient SHAP/Attention Rollout 3–5→4–6 (kể cả câu dẫn "Hình 3–5" → "Hình 4–6" ở Mục 4.4.1). Hình S1–S2 (cross-dataset) giữ nguyên vì đánh số phụ lục riêng.
 
-**Tiêu chí hoàn thành:** người đọc hiểu kiến trúc mà không phải suy luận từ danh sách bước bằng văn bản.
+**Tiêu chí hoàn thành:** người đọc hiểu kiến trúc mà không phải suy luận từ danh sách bước bằng văn bản. — Đạt.
 
 ---
 

@@ -2,12 +2,20 @@
 
 ### 3.1. Dataset
 
-**ChiliEdge-DS** comprises leaf and fruit images of five classes — `anthracnose`, `healthy`, `leaf_curl`, `leaf_spot`, `yellow_leaf` — field-collected in southern Vietnam, pre-split into `train`/`val`/`test` (1,597 / 491 / 373; 2,461 total) and preserved throughout so results reflect generalization to unseen data. Images were photographed against a white background to make the diseased region stand out, at ~12,000×9,000 native resolution later resized to 300×300; the dataset is released on Kaggle [23]. The split is close to balanced (largest/smallest class = 1.29 < 1.5), so no class weighting was applied and macro-F1 is not distorted by a dominant class. The white background is a **controlled** acquisition setting unlike a phone camera in the field; Section 4.3 probes part of this gap and Section 6 states what it does not cover.
+**ChiliEdge-DS** comprises 2,461 chili pepper leaf and fruit images across five classes: `anthracnose`, `healthy`, `leaf_curl`, `leaf_spot`, and `yellow_leaf`. The images were collected directly by the author in the Củ Chi area, Ho Chi Minh City, Vietnam. The data was split once, at an approximate 65:20:15 ratio, into `train`, `val`, and `test` sets of 1,597, 491, and 373 images respectively. This fixed split is kept unchanged throughout all main experiments.
+
+All original images in ChiliEdge-DS were photographed directly by the author, who holds rights to them. Images were taken against a white background using a smartphone camera; the device model was not recorded. Images have a native resolution of approximately 12,000 × 9,000 pixels, saved at 300 × 300 pixels, and resized to 224 × 224 for model input. The dataset is publicly released on Kaggle (Hải, 2026c).
+
+Labels were assigned manually by the author based on visual presentation: `anthracnose` shows dark or necrotic lesions consistent with anthracnose symptoms; `healthy` shows no clearly observable symptoms; `leaf_curl` shows leaf curling or twisting; `leaf_spot` shows discrete lesion spots on the leaf surface; and `yellow_leaf` shows predominant leaf yellowing. These are phenotype-based labels from visual observation, not pathogen identification confirmed by laboratory testing.
+
+ChiliEdge-DS is publicly released on Kaggle (Hải, 2026c) without an open license attached (the license field at the source remains "Unknown"). This is a deliberate choice by the author to retain full control over reuse of the original images collected by the author, not an editorial oversight.
+
+The ratio between the largest and smallest class is 1.29, so no class weighting was applied. Macro-F1 is reported alongside accuracy so that each class contributes equally to the aggregate result. The white background is a controlled acquisition condition; the gap with other-source images and natural backgrounds is examined in Section 4.5 and discussed in Section 6.
 
 **Table 1. Per-class distribution of ChiliEdge-DS across the fixed split.**
 
 | Class | Train | Val | Test | Total |
-|---|---|---|---|---|
+|---|---:|---:|---:|---:|
 | anthracnose | 264 | 81 | 62 | 407 |
 | healthy | 334 | 102 | 78 | 514 |
 | leaf_curl | 328 | 104 | 82 | 514 |
@@ -17,32 +25,57 @@
 
 ### 3.2. Architecture: ChiliEdgeNet
 
-Convolution's limited receptive field keeps MobileNetV2 local, whereas symptoms like leaf curl and yellowing span the leaf and need relations between distant regions. The backbone is therefore truncated and its tail replaced by a Transformer block operating on feature-grid cells as image tokens.
+CNNs exploit local features well but remain limited in directly modelling relations between distant regions. ChiliEdgeNet therefore combines a truncated MobileNetV2 with a Tiny Transformer block.
 
 #### 3.2.1. Backbone Cut Point
 
-We truncate at `features[1:14]`, yielding a **96-channel 14x14** map from a 224x224 input, i.e. **196 tokens**. The choice is mechanistic: in MobileNetV2 `features[14]` is the stride-32 stage, so cutting *after* it collapses the grid to **7x7 (49 tokens)**, at which resolution the convolutional stack has already integrated information across nearly the whole image, leaving the Transformer almost no spatial relation to learn. Every cut from `features[1:8]` to `features[1:14]` preserves the 14x14 grid; a preliminary sweep selected cut 14, the deepest of them. The grid also pays off for interpretability: the Attention Rollout map (Section 5.1) is **14x14 rather than 7x7** — four times finer.
+ChiliEdgeNet uses MobileNetV2 pretrained on ImageNet and keeps the layers from `features[0]` to `features[13]`. With a 224 × 224 input, the backbone produces a feature map of size **96 × 14 × 14**, corresponding to 196 spatial positions.
 
-#### 3.2.2. Feature Path
+The backbone is cut before `features[14]`, because this layer reduces the feature map to 7 × 7 and the token count from 196 to 49. The cut point `cut = 14` was chosen through a preliminary sweep and also gives the Attention Rollout map four times as many spatial positions as a 7 × 7 grid.
 
-A 1x1 convolution after the stem compresses 96 channels to the 128-dimensional embedding; the 196 grid cells enter the Transformer block as image tokens; a token-wise mean and a linear layer produce five class scores.
+#### 3.2.2. Feature Processing Path
+
+The image is processed through the following pipeline:
+
+1. MobileNetV2 `features[0:14]`;
+2. Conv 1 × 1 mapping 96 to 128 channels;
+3. BatchNorm, GELU, and dropout 0.1;
+4. Flatten the feature map into 196 image tokens, each with 128 dimensions;
+5. Tiny Transformer block;
+6. RMSNorm and mean pooling over the token dimension;
+7. Dropout 0.2 and a linear layer predicting five classes.
 
 #### 3.2.3. Tiny Transformer Block
 
-Despite the name, ChiliEdgeNet **is purely a vision model and contains no language component** — no text encoder, no tokenizer, no pretrained language weights. It is trained end-to-end on images only with a cross-entropy loss, like an ordinary classifier. Architecturally the block is a standard Vision Transformer except for **three parameter-efficient techniques borrowed from LLMs**:
+ChiliEdgeNet is a purely vision-based model, using no text encoder, tokenizer, or pretrained language weights. The Tiny Transformer uses a pre-norm structure consisting of:
 
-- **2D-RoPE** rotates query/key vectors by a coordinate-dependent angle per grid axis, encoding 2D position **without a single learned parameter** [18] — against a learned positional embedding needing a 196x128 = **25,088-parameter** table.
-- **GQA** lets four query heads share two key/value heads, saving **16,384** attention parameters [19].
-- **RMSNorm** drops LayerNorm's mean-subtraction and shift terms, saving **384** parameters [20].
+* `RMSNorm → GQA combined with 2D-RoPE → residual connection`;
+* `RMSNorm → MLP with GELU → residual connection`.
 
-Together these save **41,856 parameters (5.9% of the model)**; Section 4.4.2 measures, one technique at a time, whether that saving costs accuracy. At embedding dimension 128, one Transformer layer, MLP ratio 2 and dropout 0.1, the model has **671,173 parameters** — **35% fewer** than [5] (1,032,568).
+The model uses embedding dimension 128, four query heads, two key/value heads, an MLP ratio of 2, and dropout of 0.1.
+
+Three parameter-efficient techniques are used:
+
+* **2D-RoPE:** uses an axial variant for the image grid, replacing a learned positional embedding and saving **25,088 parameters** (Heo et al., 2025).
+* **GQA:** lets four query heads share two key/value heads, saving **16,384 parameters** (Ainslie et al., 2023).
+* **RMSNorm:** replaces LayerNorm, saving a total of **384 parameters** (Zhang and Sennrich, 2019).
+
+Together these three techniques save **41,856 parameters**, roughly **6.2%** of ChiliEdgeNet's parameter count. The model has **671,173 parameters**, about **35.0% fewer** than the base architecture (Duhan et al., 2025), which has 1,032,568 parameters.
 
 #### 3.2.4. Removed Blocks
 
-The base architecture [5] also places a Triplet Attention gate [17] and a residual block with a channel-attention gate (RES_Block, combining ECA and SE) after the stem. Neither is part of ChiliEdgeNet: a preliminary ablation on an otherwise identical model, replicated across two independent runs, showed that removing Triplet Attention makes the network *better* under both blur and low light — a negative result we acted on rather than reported around. RES_Block was subsequently dropped as well during a later architecture simplification pass; unlike Triplet Attention, we do not have a direct same-seed with/without ablation quantifying its individual contribution, so we make no quantitative claim about that decision.
+The base architecture (Duhan et al., 2025) additionally uses Triplet Attention (Misra et al., 2021) and a RES_Block combining ECA with SE. Neither block appears in ChiliEdgeNet.
+
+The necessity of Triplet Attention and `RES_Block` was examined with a 2×2 add-back design comprising four configurations: both blocks, only Triplet Attention, only `RES_Block`, and neither. Each configuration was retrained from scratch with seed 42 under the same protocol; results and removal contrasts are presented in Section 4.3. In this seed-42 run, adding either block did not improve accuracy in the evaluated contrasts, so the final model does not use them; this result should not be read as evidence of stability across multiple runs or of equivalence between the two architectures.
+
+![Figure 1. ChiliEdgeNet architecture. Panel A: overall pipeline from the 224x224x3 input through the truncated MobileNetV2 backbone (features[0:14]), a 1x1 convolution reducing channels, 196 tokens, the Tiny Transformer block, mean pooling and the classifier, with tensor shapes at each step. Panel B: detail of one Tiny Transformer block, showing RMSNorm, Grouped Query Attention with axial 2D-RoPE (4 query heads, 2 key/value heads) with a residual connection, and a GELU MLP (expansion ratio 2.0) with a residual connection.](../../results/architecture/chiliedgenet_architecture_en.png)
 
 ### 3.3. Evaluation Metrics
 
-We report top-1 accuracy, macro-averaged F1 (so minority classes weigh equally), and total parameter count. Every accuracy figure carries a 95% Wilson confidence interval at n = 373. For reference,
+This work reports top-1 accuracy, macro-F1, and total parameter count. Every test-set accuracy value carries a 95% Wilson confidence interval at $N = 373$.
 
-$$\text{Accuracy} = \frac{TP + TN}{TP + TN + FP + FN}, \qquad \text{F1-score} = 2 \cdot \frac{\text{Precision} \cdot \text{Recall}}{\text{Precision} + \text{Recall}}$$
+$$\text{Accuracy} = \frac{1}{N}\sum_{i=1}^{N}\mathbf{1}(\hat{y}_i = y_i)$$
+
+$$F1_c = 2\cdot\frac{\text{Precision}_c \cdot \text{Recall}_c}{\text{Precision}_c + \text{Recall}_c}$$
+
+$$\text{Macro-F1} = \frac{1}{C}\sum_{c=1}^{C}F1_c,\qquad C=5$$

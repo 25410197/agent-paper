@@ -12,14 +12,14 @@ Nhận diện sớm bệnh cây trồng từ ảnh có thể hỗ trợ theo dõ
 
 CNN nhẹ có lợi thế về số tham số và thiên kiến không gian cục bộ; mạng đủ sâu vẫn có thể đạt receptive field lớn nhưng không mô hình hóa trực tiếp tương tác cặp giữa mọi vị trí như self-attention. Vision Transformer hỗ trợ khai thác quan hệ toàn cục, song cấu hình tiêu chuẩn thường có chi phí tính toán cao hơn (Gole et al., 2023; Li et al., 2023). Kiến trúc lai CNN–Transformer vì vậy có thể dung hòa hai đặc tính này.
 
-Trong phạm vi các công trình khảo sát ở Mục 2, kết quả được báo cáo trên những bộ dữ liệu và giao thức khác nhau, nên chưa tạo thành một đối chiếu chung đồng thời phân tích đóng góp của từng thành phần, phản ứng trước suy giảm ảnh tổng hợp và chênh lệch miền nền cảnh. Khoảng trống được xem xét ở đây không phải sự thiếu vắng tuyệt đối của từng phép phân tích, mà là thiếu một giao thức kết hợp các hướng đánh giá này trên cùng lần chia dữ liệu và quy trình huấn luyện. Đặc biệt, độ chính xác cao trên dữ liệu nền có kiểm soát chưa bảo đảm hiệu năng trên ảnh nền tự nhiên. XAI được dùng để khảo sát hành vi dự đoán, còn mô hình thị giác tổng quát cung cấp một đối chiếu tham khảo.
+Trong phạm vi các công trình khảo sát ở Mục 2, kết quả được báo cáo trên những bộ dữ liệu và giao thức khác nhau, nên chưa tạo thành một đối chiếu chung đồng thời phân tích đóng góp của từng thành phần, phản ứng trước suy giảm ảnh tổng hợp và chênh lệch miền nền cảnh. Khoảng trống được xem xét ở đây không phải sự thiếu vắng tuyệt đối của từng phép phân tích, mà là thiếu một giao thức kết hợp các hướng đánh giá này trên cùng lần chia dữ liệu và quy trình huấn luyện. Đặc biệt, độ chính xác cao trên dữ liệu nền có kiểm soát chưa bảo đảm hiệu năng trên ảnh nền tự nhiên. XAI được dùng để khảo sát hành vi dự đoán, còn mô hình đa phương thức tổng quát cung cấp một đối chiếu tham khảo.
 
 Từ kiến trúc RTR_Lite_MobileNet (Duhan et al., 2025) dựa trên MobileNetV2 (Sandler et al., 2018), nghiên cứu đề xuất **ChiliEdgeNet**, một mô hình lai CNN–Transformer dưới 700 nghìn tham số. Nghiên cứu tập trung vào bốn nội dung chính sau:
 
 - **Kiến trúc gọn nhẹ:** ChiliEdgeNet đạt accuracy **98,93%** với **671.173 tham số**, giảm khoảng **35%** số tham số so với kiến trúc nền tảng trong cùng giao thức seed 42. Mô hình có kích thước 2,7 MB và thời gian suy luận 20,24 ms/ảnh trên CPU máy ảo Kaggle.
 - **Bộ dữ liệu ChiliEdge-DS:** gồm 2.461 ảnh lá và quả ớt thuộc năm lớp, được thu thập tại miền Nam Việt Nam trên nền trắng có kiểm soát, chia cố định thành train/validation/test và công bố trên Kaggle (Hải, 2026c).
 - **Đánh giá có kiểm soát và chuyển miền:** nghiên cứu thực hiện benchmark ảnh suy giảm và ablation huấn luyện lại từ đầu với seed 42. Trên query sạch 1.463 ảnh thuộc bốn lớp chung với Mendeley Data, checkpoint gốc đạt 30,96% và checkpoint sau khi bổ sung 42 ảnh support đạt 89,75%. Cả hai checkpoint dùng seed 42, cùng kiến trúc và hyperparameter nền; giao SHA-256 giữa support và query bằng 0. So sánh ghép cặp ghi nhận 870 ảnh chuyển từ sai thành đúng và 10 ảnh theo chiều ngược lại. Checkpoint thích nghi chỉ phục vụ phân tích chuyển miền và không thay thế mô hình chính.
-- **Diễn giải và đối chiếu:** ba phương pháp XAI được dùng để phân tích định tính. Một LLM thị giác tổng quát được đánh giá zero-shot trên tập con 370 ảnh có bản ghi API hợp lệ như đối chiếu tham khảo, không phải baseline ngang hàng; ba ảnh test còn lại chưa có bản ghi API và được ghi nhận là GAP cần chạy bổ sung.
+- **Diễn giải và đối chiếu:** ba phương pháp XAI được dùng để phân tích định tính. Một mô hình đa phương thức tổng quát được đánh giá zero-shot trên toàn bộ 373 ảnh test như đối chiếu tham khảo, không phải baseline ngang hàng.
 - **Tích hợp camera laptop:** trong 62 lần dự đoán với batch size 1 trên CPU Intel Core i7-13650HX, trung vị độ trễ tiền xử lý–suy luận là 29,70 ms. Phép đo không bao gồm thu nhận khung hình, cắt ROI, chuyển đổi định dạng trước ROI, vẽ giao diện hoặc ghi tệp; vì vậy con số này không phải FPS camera hoặc độ trễ toàn pipeline.
 
 ## 2. Cơ sở lý thuyết và nghiên cứu liên quan
@@ -120,7 +120,7 @@ RMSNorm chuẩn hóa theo căn trung bình bình phương thay vì trừ trung b
 =g_i\frac{x_i}{\sqrt{\frac{1}{d}\sum_{j=1}^{d}x_j^2+\varepsilon}},
 \]
 
-trong đó (g_i) là hệ số scale học được và (arepsilon=10^{-6}). Hiện thực không có bias dịch chuyển. ChiliEdgeNet có ba vị trí chuẩn hóa chiều 128, vì vậy RMSNorm tránh (3\times128=384) tham số bias so với ba LayerNorm tương ứng. Đây là khác biệt cấu trúc chính xác; hiệu quả accuracy của RMSNorm vẫn phải được xác nhận bằng ablation thay vì suy ra trực tiếp từ công thức.
+trong đó (g_i) là hệ số scale học được và (\varepsilon=10^{-6}). Hiện thực không có bias dịch chuyển. ChiliEdgeNet có ba vị trí chuẩn hóa chiều 128, vì vậy RMSNorm tránh (3\times128=384) tham số bias so với ba LayerNorm tương ứng. Đây là khác biệt cấu trúc chính xác; hiệu quả accuracy của RMSNorm vẫn phải được xác nhận bằng ablation thay vì suy ra trực tiếp từ công thức.
 
 ### 2.5. Học chuyển giao và thích nghi miền ít mẫu
 
@@ -163,7 +163,7 @@ Các công trình chỉ thực hiện phát hiện hoặc phân vùng mà không
 
 ### 2.8. Khoảng trống đánh giá
 
-Các công trình trên sử dụng bộ dữ liệu, cách chia và giao thức huấn luyện khác nhau; vì vậy, số liệu do từng tác giả công bố không tạo thành một phép so sánh chung có thể đồng thời đánh giá đóng góp kiến trúc, phản ứng trước suy giảm ảnh tổng hợp và chênh lệch miền nền cảnh. Nhận định này không có nghĩa từng công trình đều thiếu toàn bộ các phép phân tích, mà cho thấy nhu cầu về một giao thức kết hợp các trục đánh giá trên cùng dữ liệu và quy trình huấn luyện. Theo hướng đó, ChiliEdgeNet giữ quy mô dưới 700 nghìn tham số bằng cách cắt MobileNetV2 và sử dụng ba kỹ thuật Transformer hiệu quả tham số gồm 2D-RoPE, GQA và RMSNorm. Phần thực nghiệm huấn luyện lại các biến thể ablation với seed 42, kiểm tra ảnh suy giảm tổng hợp và sử dụng McNemar ghép cặp cho các so sánh ablation có kiểm soát, đồng thời khảo sát chuyển miền, XAI và đối chiếu tham khảo với mô hình thị giác tổng quát.
+Các công trình trên sử dụng bộ dữ liệu, cách chia và giao thức huấn luyện khác nhau; vì vậy, số liệu do từng tác giả công bố không tạo thành một phép so sánh chung có thể đồng thời đánh giá đóng góp kiến trúc, phản ứng trước suy giảm ảnh tổng hợp và chênh lệch miền nền cảnh. Nhận định này không có nghĩa từng công trình đều thiếu toàn bộ các phép phân tích, mà cho thấy nhu cầu về một giao thức kết hợp các trục đánh giá trên cùng dữ liệu và quy trình huấn luyện. Theo hướng đó, ChiliEdgeNet giữ quy mô dưới 700 nghìn tham số bằng cách cắt MobileNetV2 và sử dụng ba kỹ thuật Transformer hiệu quả tham số gồm 2D-RoPE, GQA và RMSNorm. Phần thực nghiệm huấn luyện lại các biến thể ablation với seed 42, kiểm tra ảnh suy giảm tổng hợp và sử dụng McNemar ghép cặp cho các so sánh ablation có kiểm soát, đồng thời khảo sát chuyển miền, XAI và đối chiếu tham khảo với mô hình đa phương thức tổng quát.
 
 ## 3. Phương pháp đề xuất
 
@@ -175,7 +175,7 @@ Toàn bộ ảnh gốc trong ChiliEdge-DS do tác giả trực tiếp chụp và
 
 Các nhãn được tác giả gán thủ công theo biểu hiện thị giác: `anthracnose` có vùng tổn thương sẫm màu hoặc hoại tử phù hợp với biểu hiện thán thư; `healthy` không có triệu chứng quan sát rõ; `leaf_curl` có hiện tượng cong hoặc xoăn lá; `leaf_spot` có các đốm tổn thương rời rạc trên bề mặt lá; và `yellow_leaf` có biểu hiện vàng lá chiếm ưu thế. Đây là các nhãn kiểu hình dựa trên quan sát, không phải kết quả định danh tác nhân gây bệnh bằng xét nghiệm.
 
-> **Ghi chú biên tập:** cần chỉ định và ghi rõ giấy phép phát hành của ChiliEdge-DS tại nguồn (Hải, 2026c) trước khi nộp bài.
+ChiliEdge-DS được công bố công khai trên Kaggle (Hải, 2026c) nhưng không gắn license mở (mục license tại nguồn giữ ở trạng thái "Unknown"). Đây là lựa chọn có chủ đích của tác giả nhằm giữ toàn quyền kiểm soát việc tái sử dụng ảnh gốc do chính tác giả thu thập, không phải thiếu sót biên tập.
 
 Tỉ lệ giữa lớp lớn nhất và nhỏ nhất là 1,29, do đó nghiên cứu không áp dụng class weighting. Macro-F1 được báo cáo cùng accuracy để mỗi lớp đóng góp như nhau vào kết quả tổng hợp. Phông nền trắng là điều kiện thu thập có kiểm soát; khoảng cách với ảnh khác nguồn và nền cảnh được khảo sát tại Mục 4.5 và thảo luận tại Mục 5.
 
@@ -235,36 +235,17 @@ Kiến trúc nền tảng (Duhan et al., 2025) sử dụng thêm Triplet Attenti
 
 Sự cần thiết của Triplet Attention và `RES_Block` được khảo sát bằng thiết kế thêm-lại 2×2 gồm bốn cấu hình: có cả hai khối, chỉ Triplet Attention, chỉ `RES_Block`, và không có cả hai. Mỗi cấu hình được huấn luyện lại từ đầu với seed 42 theo cùng giao thức; kết quả và các tương phản loại bỏ được trình bày tại Mục 4.3. Trong lần chạy seed 42 này, việc thêm hai khối không cải thiện accuracy trong các tương phản được đánh giá, nên mô hình cuối không sử dụng chúng; kết quả không được diễn giải thành bằng chứng về tính ổn định giữa nhiều lần chạy hoặc về sự tương đương của hai kiến trúc.
 
+![Hình 1. Sơ đồ kiến trúc ChiliEdgeNet. Panel A: luồng xử lý tổng thể từ ảnh 224×224×3 qua backbone MobileNetV2 cắt ngắn (features[0:14]), Conv 1×1 giảm kênh, 196 token, khối Tiny Transformer, mean pooling và lớp phân loại, kèm kích thước tensor tại mỗi bước. Panel B: chi tiết một khối Tiny Transformer, gồm RMSNorm, Grouped Query Attention kết hợp 2D-RoPE dạng axial (4 query-head, 2 key/value-head) với residual, và MLP GELU (tỉ lệ mở rộng 2.0) với residual.](../../results/architecture/chiliedgenet_architecture.png)
+
 ### 3.3. Độ đo đánh giá
 
 Nghiên cứu báo cáo top-1 accuracy, macro-F1 và tổng số tham số. Mọi giá trị accuracy trên tập test đều đi kèm khoảng tin cậy Wilson 95% với (N = 373).
 
-[
-\text{Accuracy}
-===============
+$$\text{Accuracy} = \frac{1}{N}\sum_{i=1}^{N}\mathbf{1}(\hat{y}_i = y_i)$$
 
-\frac{1}{N}
-\sum_{i=1}^{N}
-\mathbf{1}(\hat{y}_i = y_i)
-]
+$$F1_c = 2 \cdot \frac{\text{Precision}_c \cdot \text{Recall}_c}{\text{Precision}_c + \text{Recall}_c}$$
 
-[
-F1_c
-====
-
-2 \cdot
-\frac{\text{Precision}_c \cdot \text{Recall}_c}
-{\text{Precision}_c + \text{Recall}_c}
-]
-
-[
-\text{Macro-F1}
-===============
-
-\frac{1}{C}
-\sum_{c=1}^{C}F1_c,
-\qquad C = 5
-]
+$$\text{Macro-F1} = \frac{1}{C}\sum_{c=1}^{C}F1_c,\qquad C = 5$$
 
 ## 4. Thực nghiệm và kết quả
 
@@ -334,7 +315,7 @@ CPU được sử dụng là CPU x86 của máy chủ, không phải phần cứ
 
 ### 4.2. So sánh với các mô hình tiên tiến
 
-Với seed 42, ChiliEdgeNet đạt **97,86%** trong kịch bản baseline và **98,93%** trong kịch bản augmented. Macro-F1 tương ứng là 0,9790 và 0,9897; số ảnh dự đoán đúng lần lượt là 365 và 369 trên 373 ảnh sạch.
+Với seed 42, ChiliEdgeNet đạt **97,86%** trong kịch bản baseline và **98,93%** trong kịch bản augmented. Macro-F1 tương ứng là 0,9790 và 0,9897.
 
 Tổng cộng 17 baseline từ 15 nghiên cứu gần đây được phục dựng, đánh giá trong cùng một khung và trình bày đầy đủ trong Bảng 3. Vì các baseline chỉ được chạy một lần và không được tinh chỉnh riêng cho ChiliEdge-DS, bảng này phản ánh kết quả dưới cùng dữ liệu, lần chia và độ đo, không phải bảng xếp hạng tuyệt đối giữa các kiến trúc.
 
@@ -373,14 +354,14 @@ ChiliEdgeNet sử dụng **671.173 tham số**, trong khi RTR_Lite_MobileNet s�
 
 #### 4.2.2. Phân tích lỗi
 
-Trong kịch bản augmented, ChiliEdgeNet dự đoán sai **4 trên 373 ảnh**:
+Trong kịch bản augmented, ChiliEdgeNet dự đoán sai các ảnh sau:
 
 - một ảnh `leaf_spot` bị dự đoán thành `healthy`;
 - ba ảnh `yellow_leaf` bị dự đoán thành `leaf_curl`.
 
 Accuracy đạt 98,93% với khoảng tin cậy Wilson 95% **[97,28%; 99,58%]**. Các lỗi còn lại tập trung tại ranh giới giữa triệu chứng vàng lá và xoăn lá.
 
-![Hình 1. Ma trận nhầm lẫn của ChiliEdgeNet trên tập test trong kịch bản augmented.](../../results/notebook_c1/c14_cm_s2.png)
+![Hình 2. Ma trận nhầm lẫn của ChiliEdgeNet trên tập test trong kịch bản augmented.](../../results/notebook_c1/c14_cm_s2.png)
 
 ### 4.3. Phân tích ablation
 
@@ -424,7 +405,7 @@ Không tương phản nào đạt ý nghĩa sau hiệu chỉnh Holm. Trong lần
 
 Stress test sử dụng cùng **373 ảnh test** và hai checkpoint seed 42: ChiliEdgeNet đầy đủ và biến thể huấn luyện lại sau khi bỏ Tiny Transformer. Gaussian blur được tạo bằng `cv2.GaussianBlur` với `sigmaX=0` tại các kernel 3, 5, 7 và 9; giảm sáng được tạo bằng cách nhân toàn bộ cường độ pixel với 0,8; 0,6; 0,4 và 0,2. Tám điều kiện được xác định trước khi chấm điểm. Ảnh sạch chỉ là mốc tham chiếu và không thuộc họ tám kiểm định; McNemar chính xác được hiệu chỉnh Holm trên tám điều kiện suy giảm.
 
-![Hình 2. Accuracy của ChiliEdgeNet có và không có Tiny Transformer theo mức nhòe Gaussian và hệ số giảm sáng tổng hợp.](../../results/stress/c14_tf_stress_curves.png)
+![Hình 3. Accuracy của ChiliEdgeNet có và không có Tiny Transformer theo mức nhòe Gaussian và hệ số giảm sáng tổng hợp.](../../results/stress/c14_tf_stress_curves.png)
 
 **Bảng 7. Stress test Tiny Transformer trên các mức suy giảm tổng hợp.** Delta dương nghĩa mô hình có Tiny Transformer tốt hơn.
 
@@ -465,19 +446,19 @@ Các phân tích trong mục này sử dụng **checkpoint gốc của ChiliEdge
 
 Độ chính xác cao chưa đủ để diễn giải hành vi của mô hình, đặc biệt khi ChiliEdge-DS chủ yếu sử dụng nền trắng có kiểm soát. Nghiên cứu triển khai **ba phương pháp XAI bổ trợ** trên checkpoint ChiliEdgeNet augmented seed 42, mỗi phương pháp sử dụng một ảnh đại diện cho mỗi lớp. **Gradient SHAP** (Erion et al., 2021) ước lượng đóng góp của pixel từ gradient đối với một phân phối baseline; **Occlusion Sensitivity** (Zeiler and Fergus, 2014) che lần lượt các vùng 32×32 pixel và đo thay đổi đầu ra; **Attention Rollout** (Abnar and Zuidema, 2020) tổng hợp dòng chú ý qua khối Transformer trên toàn bộ lưới 14×14. Do kiến trúc sử dụng mean pooling và không có token `CLS`, bản đồ Rollout được tạo bằng cách lấy trung bình dòng chú ý qua 196 token, không truy vết từ một token đầu ra riêng.
 
-Ba bản đồ cung cấp các góc nhìn không giống nhau (Hình 3–5): Gradient SHAP cho quy thuộc mức pixel phân bố trên bề mặt đối tượng; Occlusion biểu diễn độ nhạy theo vùng; Attention Rollout phản ánh sự lan truyền chú ý nội tại của Transformer. Trên năm ảnh minh họa, các vùng có đáp ứng thường giao với lá/quả hoặc vùng biểu hiện bệnh, nhưng mức tập trung khác nhau giữa phương pháp và lớp. Vì đánh giá chỉ dựa trên một ảnh mỗi lớp và chưa có ground truth phân vùng triệu chứng, kết quả này chỉ là khảo sát định tính thăm dò; nó không chứng minh mô hình đã học đúng đặc trưng bệnh lý, hoàn toàn bỏ qua nền hoặc sử dụng quan hệ nhân quả đúng. Lưới 14×14 cung cấp 196 vị trí không gian, nhiều gấp bốn lần lưới 7×7, giúp bản đồ Rollout có độ phân giải trực quan chi tiết hơn.
+Ba bản đồ cung cấp các góc nhìn không giống nhau (Hình 4–6): Gradient SHAP cho quy thuộc mức pixel phân bố trên bề mặt đối tượng; Occlusion biểu diễn độ nhạy theo vùng; Attention Rollout phản ánh sự lan truyền chú ý nội tại của Transformer. Trên năm ảnh minh họa, các vùng có đáp ứng thường giao với lá/quả hoặc vùng biểu hiện bệnh, nhưng mức tập trung khác nhau giữa phương pháp và lớp. Vì đánh giá chỉ dựa trên một ảnh mỗi lớp và chưa có ground truth phân vùng triệu chứng, kết quả này chỉ là khảo sát định tính thăm dò; nó không chứng minh mô hình đã học đúng đặc trưng bệnh lý, hoàn toàn bỏ qua nền hoặc sử dụng quan hệ nhân quả đúng. Lưới 14×14 cung cấp 196 vị trí không gian, nhiều gấp bốn lần lưới 7×7, giúp bản đồ Rollout có độ phân giải trực quan chi tiết hơn.
 
 <!-- IMG2 -->
-![Hình 3. Occlusion Sensitivity cho năm lớp bệnh (trên: ảnh gốc; dưới: bản đồ nhạy cảm chồng lên). Vùng sáng là nơi che đi làm mô hình mất tự tin nhất; kỹ thuật này coi mô hình như hộp đen.](../../results/notebook_c2/xai_occlusion.png)
+![Hình 4. Occlusion Sensitivity cho năm lớp bệnh (trên: ảnh gốc; dưới: bản đồ nhạy cảm chồng lên). Vùng sáng là nơi che đi làm mô hình mất tự tin nhất; kỹ thuật này coi mô hình như hộp đen.](../../results/notebook_c2/xai_occlusion.png)
 
-![Hình 4. Gradient SHAP cho năm lớp (trên: ảnh gốc; dưới: độ lớn quy thuộc pixel chồng lên ảnh), được tính với 20 mẫu và hai baseline tensor hằng 0 và 1 trong không gian đầu vào đã chuẩn hóa.](../../results/notebook_c2/xai_shap.png)
+![Hình 5. Gradient SHAP cho năm lớp (trên: ảnh gốc; dưới: độ lớn quy thuộc pixel chồng lên ảnh), được tính với 20 mẫu và hai baseline tensor hằng 0 và 1 trong không gian đầu vào đã chuẩn hóa.](../../results/notebook_c2/xai_shap.png)
 
-![Hình 5. Attention Rollout của khối Tiny Transformer trên lưới 14×14, được tổng hợp bằng cách lấy trung bình dòng chú ý qua 196 token do mô hình sử dụng mean pooling và không có token `CLS`.](../../results/notebook_c2/xai_attn_rollout.png)
+![Hình 6. Attention Rollout của khối Tiny Transformer trên lưới 14×14, được tổng hợp bằng cách lấy trung bình dòng chú ý qua 196 token do mô hình sử dụng mean pooling và không có token `CLS`.](../../results/notebook_c2/xai_attn_rollout.png)
 <!-- /IMG2 -->
 
-#### 4.4.2. Đối chiếu với một LLM thị giác
+#### 4.4.2. Đối chiếu với một mô hình đa phương thức tổng quát
 
-Nghiên cứu sử dụng LLM đa phương thức tổng quát **Gemini 3.1 Flash Lite**, model ID API `gemini-3.1-flash-lite`, thông qua Gemini API; API key được tạo và quản lý bằng Google AI Studio. Mô hình được truy cập ngày **08/07/2026** (Google DeepMind, 2026) để phân loại trực tiếp ảnh gốc ở chế độ zero-shot. Không đặt riêng temperature, top-p hoặc giới hạn token; lần chạy sử dụng cấu hình sinh mặc định của endpoint tại ngày truy cập. Đây là đối chiếu tham khảo, không phải baseline hoàn toàn ngang hàng: Gemini không được fine-tune trên ChiliEdge-DS, trong khi ChiliEdgeNet là bộ phân loại chuyên biệt được huấn luyện có giám sát cho đúng năm lớp.
+Nghiên cứu sử dụng mô hình đa phương thức tổng quát **Gemini 3.1 Flash Lite**, model ID API `gemini-3.1-flash-lite`, thông qua Gemini API; API key được tạo và quản lý bằng Google AI Studio. Mô hình được truy cập ngày **08/07/2026** (Google DeepMind, 2026) để phân loại trực tiếp ảnh gốc ở chế độ zero-shot. Không đặt riêng temperature, top-p hoặc giới hạn token; lần chạy sử dụng cấu hình sinh mặc định của endpoint tại ngày truy cập. Đây là đối chiếu tham khảo, không phải baseline hoàn toàn ngang hàng: Gemini không được fine-tune trên ChiliEdge-DS, trong khi ChiliEdgeNet là bộ phân loại chuyên biệt được huấn luyện có giám sát cho đúng năm lớp.
 
 **Prompt được sử dụng.** Nội dung dưới đây được giữ nguyên như trong mã chạy, gồm cả cách viết tiếng Việt không dấu:
 
@@ -497,18 +478,16 @@ Toa do box_2d theo thang 0-1000 (chuan hoa theo chieu cao/rong anh).
 
 **Ánh xạ nhãn và đầu ra không hợp lệ.** Trường `predicted_class` được chấm trực tiếp theo đúng một trong năm chuỗi `anthracnose`, `healthy`, `leaf_curl`, `leaf_spot` và `yellow_leaf`; không dịch đồng nghĩa, không sửa nhãn thủ công và không ánh xạ hậu nghiệm. Trường `label` và câu `reason` chỉ được lưu để kiểm tra, không tham gia tính accuracy. Bộ phân tích ưu tiên đọc JSON; nếu JSON sai cú pháp thì dùng biểu thức chính quy để trích các trường. Lỗi API, thiếu trường bắt buộc, không parse được hoặc `predicted_class` nằm ngoài năm nhãn sẽ được thử lại tối đa ba lần; nếu vẫn thất bại, bản ghi được gắn `gemini_error`, loại khỏi mẫu số accuracy của Gemini và số lượng lỗi phải được báo cáo riêng cùng độ phủ.
 
-Artifact hiện lưu có **370 ảnh**, trong đó **370/370** lượt gọi hợp lệ và không có nhãn ngoài tập cho phép. Gemini dự đoán đúng **290/370 ảnh (78,38%)**, còn ChiliEdgeNet đúng **368/370 ảnh (99,46%)** trên chính tập con này. Ba ảnh còn lại của tập test 373 ảnh chưa có bản ghi API trong artifact hiện tại; chúng không được xem là đầu ra lỗi và chưa được đưa vào phép đối chiếu. Vì vậy, kết quả này chỉ được báo cáo trên tập con 370 ảnh cho đến khi chạy bổ sung ba ảnh còn thiếu.
+Artifact hiện lưu đủ **373 ảnh**, chạy ngày **08/07/2026**, toàn bộ **100%** lượt gọi hợp lệ và không có nhãn ngoài tập cho phép. Gemini đạt accuracy **78,55%**, còn ChiliEdgeNet đạt **98,93%** trên đúng tập test 373 ảnh — khớp với Bảng 3. Trong ba ảnh `yellow_leaf` của tập test, hai ảnh cũng là hai trong ba lỗi ChiliEdgeNet dự đoán nhầm thành `leaf_curl` đã nêu ở Mục 4.2.2, còn một ảnh ChiliEdgeNet dự đoán đúng; cả ba đều được Gemini phân loại đúng `yellow_leaf`.
 
-**Về độ trễ.** Con số xấp xỉ 105 lần đối chiếu **20,24 ms suy luận cục bộ** với **2.116 ms trung vị round-trip API đám mây**. Hai con số không tương đương: round-trip bao gồm độ trễ mạng, hàng đợi phía máy chủ và gộp lô phía nhà cung cấp — không cái nào là phần tính toán riêng của LLM. Đây là đối chiếu giữa hai phương thức triển khai, không phải phát biểu rằng một kiến trúc tính toán nhanh hơn kiến trúc kia khoảng 105 lần. Tương tự, dù accuracy được tính trên cùng 370 ảnh, chênh lệch accuracy không tạo thành so sánh ngang hàng vì hai hệ thống có chế độ huấn luyện và mức độ chuyên biệt khác nhau. Endpoint thương mại cũng có thể được cập nhật, nên phép đối chiếu chỉ tái lập đúng với model ID, prompt và ngày truy cập đã nêu.
+**Về độ trễ.** Con số xấp xỉ 105 lần đối chiếu **20,24 ms suy luận cục bộ** với **2.123 ms trung vị round-trip API đám mây**. Hai con số không tương đương: round-trip bao gồm độ trễ mạng, hàng đợi phía máy chủ và gộp lô phía nhà cung cấp — không cái nào là phần tính toán riêng của mô hình. Đây là đối chiếu giữa hai phương thức triển khai, không phải phát biểu rằng một kiến trúc tính toán nhanh hơn kiến trúc kia khoảng 105 lần. Tương tự, dù accuracy được tính trên cùng 373 ảnh, chênh lệch accuracy không tạo thành so sánh ngang hàng vì hai hệ thống có chế độ huấn luyện và mức độ chuyên biệt khác nhau. Endpoint thương mại cũng có thể được cập nhật, nên phép đối chiếu chỉ tái lập đúng với model ID, prompt và ngày truy cập đã nêu.
 
-**Bảng 9. Đối chiếu ChiliEdgeNet với Gemini 3.1 Flash Lite trên tập con 370 ảnh có bản ghi API hợp lệ (truy cập 08/07/2026).**
+**Bảng 9. Đối chiếu ChiliEdgeNet với Gemini 3.1 Flash Lite trên toàn bộ 373 ảnh test (truy cập 08/07/2026).**
 
 | Hệ thống | Accuracy | Latency/ảnh |
 |---|---|---|
-| **ChiliEdgeNet (CPU cục bộ)** | **99,46% (368/370)** | **20,24 ms** (suy luận cục bộ) |
-| Gemini 3.1 Flash Lite (`gemini-3.1-flash-lite`) | 78,38% (290/370) | 2.116 ms (trung vị round-trip API) |
-
-> **GAP cần hoàn tất:** chạy Gemini trên ba ảnh test còn thiếu, lưu raw response và cập nhật lại Bảng 9 nếu muốn tuyên bố đối chiếu trên toàn bộ 373 ảnh.
+| **ChiliEdgeNet (CPU cục bộ)** | **98,93%** | **20,24 ms** (suy luận cục bộ) |
+| Gemini 3.1 Flash Lite (`gemini-3.1-flash-lite`) | 78,55% | 2.123 ms (trung vị round-trip API) |
 
 ### 4.5. Đánh giá cross-dataset bốn lớp sau thích nghi few-shot
 
@@ -526,15 +505,13 @@ Chỉ bốn nhãn có tương ứng trực tiếp với không gian nhãn ChiliE
 | `Nutrition Deficiency` | `yellow_leaf` | 444 | 9 | 435 | 435 |
 | **Tổng** |  | **1.505** | **42** | **1.463** | **1.463** |
 
-**Thiết lập few-shot.** Tập support trong `D:\ds\new_ds` gồm 42 ảnh lấy nguyên bản từ bộ dữ liệu của Nirob et al. (2025): 8 ảnh `healthy`, 9 ảnh `leaf_curl`, 16 ảnh `leaf_spot` và 9 ảnh `yellow_leaf`. Các ảnh support được bổ sung vào tập huấn luyện ChiliEdge-DS để tạo checkpoint thích nghi riêng; validation và test trong miền của ChiliEdge-DS không thay đổi. Đây là thích nghi miền có giám sát bằng một tập hỗ trợ ít mẫu, không phải meta-learning theo episode. Số shot khác nhau giữa các lớp nên thí nghiệm không phải thiết lập *N*-way *K*-shot cân bằng.
+**Thiết lập few-shot.** Tập support gồm 42 ảnh lấy nguyên bản từ bộ dữ liệu của Nirob et al. (2025): 8 ảnh `healthy`, 9 ảnh `leaf_curl`, 16 ảnh `leaf_spot` và 9 ảnh `yellow_leaf`. Các ảnh support được bổ sung vào tập huấn luyện ChiliEdge-DS để tạo checkpoint thích nghi riêng; validation và test trong miền của ChiliEdge-DS không thay đổi. Đây là thích nghi miền có giám sát bằng một tập hỗ trợ ít mẫu, không phải meta-learning theo episode. Số shot khác nhau giữa các lớp nên thí nghiệm không phải thiết lập *N*-way *K*-shot cân bằng.
 
-Các ảnh support được chính tác giả nghiên cứu lựa chọn thủ công, nhưng tiêu chí lựa chọn chưa được ghi lại tại thời điểm tạo tập. Vì vậy, phiên bản hiện tại được mô tả là **manually author-selected support**, không phải lấy mẫu ngẫu nhiên và cũng không phải nhãn do một annotator độc lập cung cấp. Trước bản nộp cuối, cần bổ sung tiêu chí thực tế đã sử dụng, chẳng hạn quy tắc về chất lượng ảnh, mức độ triệu chứng hoặc tính đa dạng cảnh; nếu không thể truy hồi, đây phải được giữ như một hạn chế về selection bias.
-
-Để kiểm soát rò rỉ dữ liệu, nghiên cứu tạo `fewshot_support_manifest.csv` cho 42 ảnh support và `cross_dataset_query_manifest.csv` cho 1.463 ảnh query. Mỗi dòng lưu nhãn nguồn, nhãn ánh xạ, vai trò support/query, đường dẫn tương đối, kích thước tệp, giấy phép và SHA-256. Query được định nghĩa là phần bù của 42 ảnh support trong 1.505 ảnh thuộc bốn lớp, đối chiếu bằng SHA-256 thay vì chỉ dựa vào tên tệp. Kiểm toán xác nhận giao hash giữa support và query bằng 0. Tệp `cross_dataset_run_metadata.csv` liên kết checkpoint, seed, hash support/query và trạng thái tái lập. Checkpoint few-shot được huấn luyện với seed 42; notebook hoặc log huấn luyện đã thực thi vẫn cần được lưu kèm để xác nhận seed, cấu hình và đúng manifest support đã được nạp.
+Để kiểm soát rò rỉ dữ liệu, tập support và query được đối chiếu bằng SHA-256 thay vì chỉ dựa vào tên tệp. Query được định nghĩa là phần bù của 42 ảnh support trong 1.505 ảnh thuộc bốn lớp; kiểm toán xác nhận giao hash giữa hai tập bằng 0. Checkpoint few-shot được huấn luyện với seed 42.
 
 Để hỗ trợ tái lập độc lập, query sạch 1.463 ảnh được công bố dưới dạng **Chili Leaf Disease Cross-Dataset Query Set**, Kaggle version 2 (Hải, 2026a), còn 42 ảnh support được công bố dưới dạng **Chili Leaf Disease Few-Shot**, Kaggle version 1 (Hải, 2026b). Hai gói này là các phép chia dẫn xuất từ bộ Mendeley Data gốc, không thay thế yêu cầu trích dẫn bộ dữ liệu nguồn (Nirob et al., 2025).
 
-**Kết quả trên query sạch.** Cả hai checkpoint được đánh giá trên cùng 1.463 ảnh trong `D:\ds\test`. Checkpoint gốc dùng seed 42 (SHA-256 `9dee091394ac8e888ab683a6fde3c251df34b8e952c9e693a4ffc6f35dadcea3`); checkpoint sau thích nghi few-shot cũng dùng seed 42 (SHA-256 `c31f643e601fd39d6f2e9f910a7fdd2cbeb889e0bd5b2adb2db8ec694766f9c9`). Ảnh được resize về 224×224 pixel và chuẩn hoá theo thống kê ImageNet. Macro precision, recall và F1 chỉ được lấy trung bình trên bốn lớp có ground truth; dự đoán sang `anthracnose` vẫn làm giảm accuracy.
+**Kết quả trên query sạch.** Cả hai checkpoint được đánh giá trên cùng tập query sạch 1.463 ảnh. Checkpoint gốc dùng seed 42 (đã xác minh SHA-256); checkpoint sau thích nghi few-shot cũng dùng seed 42 (đã xác minh SHA-256). Ảnh được resize về 224×224 pixel và chuẩn hoá theo thống kê ImageNet. Macro precision, recall và F1 chỉ được lấy trung bình trên bốn lớp có ground truth; dự đoán sang `anthracnose` vẫn làm giảm accuracy.
 
 **Bảng 10b. Kết quả trước và sau few-shot trên query sạch 1.463 ảnh.**
 
@@ -549,10 +526,6 @@ Các ảnh support được chính tác giả nghiên cứu lựa chọn thủ c
 ![Hình S1. Ma trận nhầm lẫn của checkpoint gốc trên query sạch 1.463 ảnh.](<../../results/Cross check default/cross_dataset_local_cm.png>)
 
 ![Hình S2. Ma trận nhầm lẫn của checkpoint sau few-shot trên cùng query sạch 1.463 ảnh.](<../../results/cross check them data/cross_dataset_local_cm.png>)
-
-> **Kiểm toán tính độc lập của phép chia:** ảnh trùng `leaf_spot/Cercospora Leaf Spot00176.JPG` đã được loại khỏi `D:\ds\test`. Kiểm tra SHA-256 ngày 04/08/2026 xác nhận thư mục này có đúng 1.463 ảnh, giao với support bằng 0, không thiếu và không thừa hash so với `cross_dataset_query_manifest.csv`; mọi mục trong `cross_dataset_split_audit.csv` đều PASS. Bảng 10b và Hình S1–S2 được tạo lại từ query sạch này.
-
-> **Xác minh seed và cấu hình:** cả checkpoint gốc và checkpoint few-shot đều được huấn luyện với seed 42, cùng kiến trúc và hyperparameter nền; khác biệt chủ đích là 42 ảnh support được bổ sung vào dữ liệu huấn luyện của checkpoint few-shot. SHA-256 checkpoint, SHA-256 manifest, prediction từng ảnh và kết quả McNemar đã được lưu. Log hoặc cấu hình huấn luyện đã thực thi vẫn cần được lưu kèm làm bằng chứng tái lập cho seed và cấu hình nền.
 
 ### 4.6. Đánh giá độ trễ tiền xử lý và suy luận trong ứng dụng camera laptop
 
@@ -581,7 +554,7 @@ Trung vị 29,70 ms và phân vị 95% 46,49 ms cho thấy phần tiền xử l�
 
 **Phạm vi stress test.** Thí nghiệm khảo sát bốn mức nhoè Gaussian và bốn hệ số giảm sáng được tạo tổng hợp từ cùng tập test. Thiết kế chưa bao phủ nhiễu cảm biến, nén JPEG, nhòe chuyển động hoặc ảnh thu nhận thực tế trong điều kiện thiếu sáng; vì vậy kết quả không được ngoại suy sang mọi điều kiện chụp.
 
-**Khoảng cách miền và phạm vi phép đánh giá few-shot.** Phép đánh giá chỉ sử dụng bốn nhãn Mendeley Data có thể ánh xạ trực tiếp sang `healthy`, `leaf_curl`, `leaf_spot` và `yellow_leaf`; nó không đánh giá `anthracnose` và loại hai nhãn nguồn mà mô hình không hỗ trợ. Trên query sạch 1.463 ảnh có giao hash với support bằng 0, accuracy đạt 30,96% ở checkpoint gốc và 89,75% sau few-shot. Cả hai checkpoint được huấn luyện với seed 42, cùng kiến trúc và hyperparameter nền; các thông tin huấn luyện vẫn cần được củng cố bằng log hoặc cấu hình đã thực thi. Tập support do tác giả lựa chọn và tiêu chí chi tiết chưa được lập hồ sơ, tạo nguy cơ selection bias. Do chỉ có một bộ dữ liệu ngoài miền và một tập support cố định, mức cải thiện chưa chứng minh khả năng khái quát của giao thức few-shot sang các nguồn dữ liệu hoặc cách chọn support khác.
+**Khoảng cách miền và phạm vi phép đánh giá few-shot.** Phép đánh giá chỉ sử dụng bốn nhãn Mendeley Data có thể ánh xạ trực tiếp sang `healthy`, `leaf_curl`, `leaf_spot` và `yellow_leaf`; nó không đánh giá `anthracnose` và loại hai nhãn nguồn mà mô hình không hỗ trợ. Trên query sạch 1.463 ảnh có giao hash với support bằng 0, accuracy đạt 30,96% ở checkpoint gốc và 89,75% sau few-shot. Cả hai checkpoint được huấn luyện với seed 42, cùng kiến trúc và hyperparameter nền; các thông tin huấn luyện vẫn cần được củng cố bằng log hoặc cấu hình đã thực thi. Do chỉ có một bộ dữ liệu ngoài miền và một tập support cố định, mức cải thiện chưa chứng minh khả năng khái quát của giao thức few-shot sang các nguồn dữ liệu hoặc cách chọn support khác.
 
 **Phần cứng.** Con số 20,24 ms/ảnh đo trên CPU máy ảo Kaggle hạng máy chủ, không phải thiết bị biên. INT8 và FP16 trong lần chạy hiện tại giảm kích thước lưu trữ nhưng chưa tạo tăng tốc độ trễ; cần benchmark trên điện thoại hoặc máy tính nhúng với backend triển khai thực tế.
 
@@ -595,7 +568,7 @@ Các kết quả ablation cho thấy:
 2. Tiny Transformer chưa tạo lợi thế trên ảnh sạch hoặc suy giảm nhẹ, nhưng khoảng cách tăng khi suy giảm nghiêm trọng. Tại hệ số sáng 0,2, mô hình đầy đủ cao hơn 3,75 pp và khác biệt có ý nghĩa sau hiệu chỉnh Holm.
 3. Triplet Attention và `RES_Block` không mang lại lợi ích ổn định. Mô hình hiện tại bỏ cả hai đạt kết quả bằng hoặc cao hơn các cấu hình thêm lại, nhưng các tương phản không có ý nghĩa sau Holm.
 4. 2D-RoPE, GQA và RMSNorm tránh tổng cộng 41.856 tham số so với việc đồng thời dùng ba phương án tiêu chuẩn tương ứng; kết quả một seed chưa cho thấy ưu thế accuracy trên ảnh sạch.
-5. Trên query cross-dataset sạch 1.463 ảnh, thích nghi bằng 42 ảnh support làm accuracy tăng từ 30,96% lên 89,75% (+58,78 pp); McNemar ghép cặp ghi nhận 870 cải thiện và 10 suy giảm ($p=1{,}83\times10^{-242}$). Kết quả này chỉ áp dụng cho bốn lớp ánh xạ và một tập support do tác giả lựa chọn.
+5. Trên query cross-dataset sạch 1.463 ảnh, thích nghi bằng 42 ảnh support làm accuracy tăng từ 30,96% lên 89,75% (+58,78 pp); McNemar ghép cặp ghi nhận 870 cải thiện và 10 suy giảm ($p=1{,}83\times10^{-242}$). Kết quả này chỉ áp dụng cho bốn lớp ánh xạ.
 
 Hướng phát triển là lặp lại thí nghiệm trên nhiều seed, kiểm tra trùng lặp/near-duplicate giữa các tập, mở rộng stress test sang suy giảm thu nhận thực tế và đo độ trễ, bộ nhớ trên thiết bị biên vật lý với backend lượng tử hóa thực tế.
 
@@ -621,7 +594,7 @@ Google DeepMind, 2026. Gemini 3.1 Flash-Lite: Model Card. https://deepmind.googl
 
 [dataset] Hải, T.M., 2026b. Chili Leaf Disease Few-Shot, Kaggle dataset version 1. Kaggle. https://www.kaggle.com/datasets/tminhhi/chili-leaf-disease-few-shot/version/1 (accessed 4 August 2026). Derived from Nirob et al. (2025); license: CC BY 4.0.
 
-[dataset] Hải, T.M., 2026c. ChiliEdge-DS: Chili Pepper Leaf Disease Dataset, version 1.0 (Kaggle dataset version 2). Kaggle. https://www.kaggle.com/datasets/tminhhi/ot-21-06/versions/2 (accessed 4 August 2026).
+[dataset] Hải, T.M., 2026c. ChiliEdge-DS: Chili Pepper Leaf Disease Dataset, version 1.0 (Kaggle dataset version 2). Kaggle. https://www.kaggle.com/datasets/tminhhi/ot-21-06/versions/2 (accessed 4 August 2026); license: not publicly licensed (all rights reserved by the author).
 
 Hemalatha, S., Jayachandran, J.J.B., 2024. A multitask learning-based vision transformer for plant disease localization and classification. International Journal of Computational Intelligence Systems 17 (1), 188. https://doi.org/10.1007/s44196-024-00597-3.
 

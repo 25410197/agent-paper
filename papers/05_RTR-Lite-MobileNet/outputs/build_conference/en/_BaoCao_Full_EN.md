@@ -4,41 +4,146 @@
 
 ## Abstract
 
-Early plant-disease diagnosis is crucial for crop protection, yet high-accuracy deep models are usually too heavy for the edge devices farmers actually use. Building on the lightweight RTR_Lite_MobileNet, this paper proposes **ChiliEdgeNet**, a compact CNN-Transformer hybrid: the MobileNetV2 backbone is truncated at `features[1:14]`, yielding a 96-channel 14x14 feature grid (196 tokens) that feeds a small Transformer block integrating three parameter-efficient techniques borrowed from LLM architectures — 2D rotary position embedding (2D-RoPE), grouped-query attention (GQA), and RMSNorm. With **671,173 parameters** (2.7 MB, **35% fewer** than the base architecture), it runs fully offline on a CPU at **19.28 ms/image** and reaches **99.20%** (augmented scenario) on **ChiliEdge-DS**, a chili pepper disease dataset we built and publicly release with this paper (5 classes, 2,461 images field-collected in southern Vietnam, fixed train/val/test split).
-
-The headline result is that ChiliEdgeNet is **more accurate and lighter at the same time, with no trade-off**: it reaches 99.20% against 98.12% for the base architecture (+1.07 percentage points, 4 images out of 373 — measured at two different seeds, 123 for ChiliEdgeNet and 42 for the base architecture), while using only 671,173 against 1,032,568 parameters — 35% fewer. The methodological contribution is to ask *which* design choices actually pay for themselves, via **retrain-from-scratch ablation** and **per-image paired McNemar testing** on clean images plus two test-time degradations. The answer is mixed and we report it as such: **all three LLM techniques are close to free** — 2D-RoPE matches a learned positional table, GQA matches multi-head attention, and RMSNorm matches LayerNorm on every axis (none loses with statistical significance, the smallest *p* is 0.063) — together saving **41,856 parameters** at no measurable accuracy cost. We report two further results: the Tiny Transformer block contributes measurably and significantly under blur (+5.90 pp, *p* = 0.0001), not on clean images; and the Triplet Attention block inherited from the base architecture harms accuracy under blur and low light and was removed from the design (as was RES_Block, dropped in a later simplification pass). Two XAI techniques from maximally distinct mechanism families confirm the model attends to genuine disease regions, and it beats a general-purpose vision LLM 99.20% to 78.55% at ~110x lower system-level latency.
+Plant-disease diagnosis aimed at resource-constrained devices needs a model that is both accurate and lightweight. This work proposes **ChiliEdgeNet**, a CNN-Transformer hybrid architecture built by truncating MobileNetV2 and integrating a Tiny Transformer block. We also introduce **ChiliEdge-DS**, a publicly released dataset of 2,461 chili pepper leaf and fruit images across five classes. ChiliEdgeNet reaches **98.93%** accuracy with **671,173 parameters**, about **35% fewer** than the base architecture. The model is 2.7 MB and has an inference latency of 20.24 ms/image on a server-class CPU. In a synthetic brightness-reduction stress test at factor 0.2, the full model outperforms the variant without the Transformer by 3.75 percentage points. On a clean cross-dataset query set of 1,463 images across four classes shared with Mendeley Data, accuracy rises from 30.96% at the original checkpoint to 89.75% after adapting with 42 support images; both checkpoints use seed 42. A paired McNemar test records 870 images turning from incorrect to correct and 10 in the opposite direction ($p = 1.83\times10^{-242}$). These results position ChiliEdgeNet as a candidate for offline inference on resource-constrained hardware, but direct evaluation on edge hardware and domain-transfer confirmation on more independent datasets remain necessary.
 
 ## 1. Introduction
 
-Chili pepper diseases substantially reduce crop yield, and farmers need a diagnostic tool that runs directly on an edge device: simultaneously lightweight and accurate, two goals that usually conflict.
+Early detection of plant disease from images can support monitoring and treatment. However, deployment at the point of image capture requires a model with low computational cost, offline operation, and sufficiently high accuracy (Joseph et al., 2024; Maurya et al., 2024; Duhan et al., 2025) — requirements that matter most for resource-constrained devices.
 
-Lightweight convolutional networks address the size constraint but, being purely local, struggle with relationships between distant leaf regions; vision transformers capture such global relations but are typically heavier. Hybrid CNN-Transformer designs compromise, yet most prior work reports single-seed accuracy without variance-controlled ablation, multi-technique interpretability, or a comparison against a multimodal foundation model. More fundamentally, such work reports the *assembled* model without measuring whether each component earns its parameters.
+Lightweight CNNs offer an advantage in parameter count and local spatial inductive bias; a sufficiently deep network can still reach a large receptive field, but it does not directly model pairwise interactions between every position the way self-attention does. Vision Transformers support exploiting global relations, but standard configurations typically carry higher computational cost (Gole et al., 2023; Li et al., 2023). Hybrid CNN-Transformer architectures can therefore reconcile the two properties.
 
-This work starts from RTR_Lite_MobileNet [5], which augments MobileNetV2 [16] with attention blocks, and proposes **ChiliEdgeNet**, a sub-700-thousand-parameter hybrid integrating three parameter-efficient LLM techniques. The contributions are:
+Within the body of work surveyed in Section 2, results are reported on different datasets and protocols, so they do not yet form a shared comparison that simultaneously analyzes each component's contribution, response to synthetic degradation, and background domain gap. The gap considered here is not the absolute absence of each individual analysis, but the absence of a protocol that combines these evaluation axes on the same data split and training procedure. In particular, high accuracy on a controlled-background dataset does not guarantee performance on natural-background images. XAI is used to probe prediction behaviour, while a general-purpose multimodal model provides a reference comparison.
 
-- **ChiliEdgeNet**: fully offline on CPU at 19.28 ms/image (2.7 MB), 99.20% on both augmented and baseline with **671,173 parameters** — higher than the base architecture [5] (98.12%) while using **35% fewer** parameters — leading the pool of a 27-configuration SOTA reproduction.
-- **ChiliEdge-DS**, a field-collected chili disease dataset from southern Vietnam (5 classes, 2,461 images, fixed split; Section 3.1), released on Kaggle [23].
-- A **component-level audit**: a test-time degradation benchmark plus **retrain-from-scratch ablation** at *block* level (Tiny Transformer) and *individual technique* level (2D-RoPE, GQA, RMSNorm), every comparison tested per-image on the same 373 images. This yields the central claim: **all three techniques are close to free — 41,856 parameters saved at no measurable accuracy cost — while the Tiny Transformer block contributes significantly under blur (*p* = 0.0001).**
-- Two XAI techniques from maximally distinct mechanism families (Occlusion Sensitivity, black-box perturbation; Attention Rollout, reading the Transformer's internals) plus a zero-shot Gemini comparison validate the model.
+Building on the RTR_Lite_MobileNet architecture (Duhan et al., 2025), based on MobileNetV2 (Sandler et al., 2018), this work proposes **ChiliEdgeNet**, a CNN-Transformer hybrid under 700 thousand parameters. The work focuses on four main contributions:
 
-## 2. Related Work
+- **Lightweight architecture:** ChiliEdgeNet reaches **98.93%** accuracy with **671,173 parameters**, about **35% fewer** parameters than the base architecture under the same seed-42 protocol. The model is 2.7 MB and has an inference time of 20.24 ms/image on a Kaggle virtual-machine CPU.
+- **The ChiliEdge-DS dataset:** 2,461 chili pepper leaf and fruit images across five classes, collected in southern Vietnam against a controlled white background, split into fixed train/validation/test sets and released on Kaggle (Hải, 2026c).
+- **Controlled evaluation and domain transfer:** the work runs a degraded-image benchmark and a retrain-from-scratch ablation with seed 42. On a clean query set of 1,463 images across four classes shared with Mendeley Data, the original checkpoint reaches 30.96% and the checkpoint after adding 42 support images reaches 89.75%. Both checkpoints use seed 42, the same architecture and base hyperparameters; the SHA-256 intersection between support and query is zero. A paired comparison records 870 images turning from incorrect to correct and 10 in the opposite direction. The adapted checkpoint serves only the domain-transfer analysis and does not replace the main model.
+- **Interpretation and reference comparison:** three XAI methods are used for qualitative analysis. A general-purpose multimodal model is evaluated zero-shot on the full 373 test images as a reference comparison, not a peer baseline.
+- **Laptop-camera integration:** over 62 predictions at batch size 1 on an Intel Core i7-13650HX CPU, the median preprocessing-inference latency is 29.70 ms. The measurement excludes frame capture, ROI cropping, format conversion before the ROI, UI rendering, or file writes; this figure is therefore not a camera FPS or full-pipeline latency.
 
-**Selection criteria for the baseline pool.** The 27 configurations in Table 3 come from 15 studies selected by: (i) peer-reviewed work published 2023–2026 on image-based plant-disease classification; (ii) an explicit architectural focus on deployability (lightweight CNN / ViT / hybrid) or a broad CNN-vs-ViT comparison; (iii) enough architectural detail (layer configuration, embedding widths, head counts) to reimplement faithfully without contacting the authors; (iv) coverage of all four directions below rather than only the strongest family. Studies were excluded when they targeted detection/segmentation rather than classification, or when the architecture could not be reconstructed unambiguously. The pool is therefore representative of the *deployment-oriented* literature of the last three years, not an exhaustive survey; each model is reproduced by us under a common protocol, so Table 3 measures competitiveness under shared conditions, not the authors' published numbers.
+## 2. Theoretical Background and Related Work
 
-**Lightweight CNNs** keep parameters low with efficient attention or compact blocks. RTR_Lite_MobileNetV2 [5] — our base architecture — augments MobileNetV2 [16] with triplet attention [17] and a spatial-attention residual block. ULEN [8] pushes ultra-lightweight design to 28k parameters, MRW-CNN [4] and Lite-MDC [7] target real-time field deployment, and CustomMNetV3L [12] adapts MobileNetV3-Large. All remain purely convolutional and reason locally. **Vision transformers** capture global relations but are heavier: a plain ViT [15], TrIncNet [3] (Inception-style tokenization), PMVT [6] (mobile-oriented), PDLC-ViT [10] (multitask localization plus classification). **Hybrid CNN-Transformers** are closest to ours: GrapeLeafNet [13] fuses Inception-ResNet with a Shuffle-Transformer, MaizeFormerX [2] adds cross-scale attention, LDI-NET [9] combines CNN and transformer branches for multi-label severity — typically 3–9M parameters. **Broad comparative studies**: Mishra et al. [11] benchmark CNN/AlexNet/ResNet/EfficientNet families, Sujatha et al. [14] pair deep features with SVM classifiers, Maurya et al. [1] build a lightweight meta-ensemble for IoT.
+### 2.1. Lightweight CNNs and MobileNetV2
 
-We push the hybrid direction further — under 700 thousand parameters via a well-placed backbone truncation and three parameter-efficient LLM techniques — but differ mainly in **how we evaluate**. Most work above ranks models by clean accuracy on a single split; among the leading models in Table 3, this axis has already maxed out (Section 4.2), so it no longer separates competitive designs or reflects deployment conditions. We replace it with a **test-time degradation benchmark**, **per-image paired McNemar tests**, and a **retrain-from-scratch ablation at both block and technique granularity**.
+With an input feature map of size $(H \times W \times C_{in})$, kernel $(k \times k)$ and $C_{out}$ output channels, a standard convolution requires approximately
+
+$$HWk^2C_{in}C_{out}$$
+
+multiply-accumulate operations. Depthwise separable convolution decomposes this computation into a per-channel depthwise convolution and a $1\times1$ pointwise convolution that mixes information across channels. The cost is then approximately
+
+$$HW\left(k^2C_{in}+C_{in}C_{out}\right),$$
+
+giving a ratio relative to standard convolution of
+
+$$\frac{1}{C_{out}}+\frac{1}{k^2}.$$
+
+This is the basis for how the MobileNet family reduces computation on resource-constrained devices. MobileNetV2 organizes these convolutions inside the *inverted residual with linear bottleneck* block (Sandler et al., 2018). Each block first uses a pointwise convolution to expand the channel count, then a depthwise convolution to extract spatial features, and finally a linear projection back to a low-dimensional space. When the stride equals 1 and the input/output sizes are compatible, a shortcut connects the two thin bottleneck representations. The final projection uses no activation function to limit information loss in the low-dimensional space. ChiliEdgeNet inherits this local inductive bias and computational efficiency from the retained portion of MobileNetV2.
+
+### 2.2. Image Tokens and Self-Attention
+
+Let the CNN backbone produce a feature map $F\in\mathbb{R}^{C\times H\times W}$. After a channel projection, the feature map is flattened into a sequence
+
+$$X\in\mathbb{R}^{N\times d},\qquad N=HW,$$
+
+where each row is a token representing one spatial location. From $X$, the query, key, and value matrices are formed by
+
+$$Q=XW_Q,\qquad K=XW_K,\qquad V=XW_V.$$
+
+Scaled dot-product attention (Vaswani et al., 2017) is defined as
+
+$$\operatorname{Attention}(Q,K,V)=\operatorname{softmax}\!\left(\frac{QK^{\top}}{\sqrt{d_h}}\right)V,$$
+
+where $d_h$ is the dimensionality of each attention head. Unlike convolution, which aggregates only a local neighbourhood directly at each layer, self-attention lets every token interact directly with every other token. In exchange, the attention matrix has $O(N^2)$ complexity in the number of tokens. ChiliEdgeNet uses a $14\times14$ grid, i.e. $N=196$, to retain more spatial positions than a $7\times7$ grid while still bounding the cost of a small Transformer block.
+
+The Transformer block in this work uses a pre-norm structure with two residual branches:
+
+$$X' = X + \operatorname{GQA}(\operatorname{RMSNorm}(X)),$$
+
+$$Y = X' + \operatorname{MLP}(\operatorname{RMSNorm}(X')).$$
+
+The MLP consists of two linear layers, GELU, and dropout. The residual connection provides a direct path for representations and gradients; pre-norm normalizes the input of each transformation rather than normalizing after the addition.
+
+### 2.3. Grouped-Query Attention
+
+Standard multi-head attention creates separate keys and values for every query head. Grouped-query attention (GQA) sets the number of query heads $h_q$ larger than the number of key/value heads $h_{kv}$, then lets a group of $h_q/h_{kv}$ query heads share one key/value pair (Ainslie et al., 2023). GQA sits between multi-head attention, where $h_q=h_{kv}$, and multi-query attention, where every query head shares a single key/value head.
+
+If the embedding has dimension $d$ and the projections use no bias, the query and output projections of GQA still require $2d^2$ parameters, while the key and value require
+
+$$2d^2\frac{h_{kv}}{h_q}.$$
+
+The total parameter count of the four attention projections is therefore
+
+$$P_{GQA}=2d^2+2d^2\frac{h_{kv}}{h_q}.$$
+
+With $d=128$, $h_q=4$, and $h_{kv}=2$, each key/value head serves two query heads and the module avoids **16,384** parameters compared with four-head multi-head attention. In this work's implementation, the key and value are projected with two heads and then repeated by group before computing attention. The benefit asserted here is therefore a reduction in projection parameters; we do not extrapolate this into a conclusion about inference-speed gains.
+
+### 2.4. 2D-RoPE Positional Encoding and RMSNorm
+
+Self-attention carries no inherent information about token order or coordinates. Rotary position embedding (RoPE) encodes position by rotating each pair of components of the query and key by a position-dependent angle (Su et al., 2024). For a two-dimensional pair $z=(z_1,z_2)$, the rotation at position $p$ has the form
+
+$$R(p\theta)z=\begin{bmatrix}\cos(p\theta) & -\sin(p\theta)\\\sin(p\theta) & \cos(p\theta)\end{bmatrix}z.$$
+
+The original RoPE formulation is presented for one-dimensional sequences (Su et al., 2024). For an image grid, this work uses **axial 2D-RoPE**: each query/key head is split into two halves; one half is rotated by the row coordinate ($y$) and the other by the column coordinate ($x$), following the RoPE-Axial extension for Vision Transformers of Heo et al. (2025). This injects 2D coordinates into the query and key without learning a positional-embedding table. With 196 tokens and embedding dimension 128, a learned positional table would require $196\times128=25{,}088$ parameters.
+
+RMSNorm normalizes by the root-mean-square rather than subtracting the mean as LayerNorm does (Zhang and Sennrich, 2019). For a token $x\in\mathbb{R}^{d}$, the normalization used in the model is
+
+$$\operatorname{RMSNorm}(x)_i=g_i\frac{x_i}{\sqrt{\frac{1}{d}\sum_{j=1}^{d}x_j^2+\varepsilon}},$$
+
+where $g_i$ is a learned scale coefficient and $\varepsilon=10^{-6}$. The implementation has no shift bias. ChiliEdgeNet has three normalization points of dimension 128, so RMSNorm avoids $3\times128=384$ bias parameters relative to three equivalent LayerNorms. This is an exact structural difference; RMSNorm's effect on accuracy still must be confirmed by ablation rather than inferred directly from the formula.
+
+### 2.5. Transfer Learning and Few-Shot Domain Adaptation
+
+Transfer learning leverages knowledge from a source domain or task to support a target domain or task (Pan and Yang, 2010). This work involves two levels of transfer. First, the MobileNetV2 backbone uses ImageNet-pretrained weights before being fine-tuned on ChiliEdge-DS. Second, the cross-dataset experiment treats ChiliEdge-DS as the source domain and the Mendeley Data image set as the target domain, which differs in acquisition conditions, background, and symptom distribution.
+
+Let the source training set be $\mathcal{D}_s$, the labelled support set of the target domain be $S_t$, and the target-domain query set be $Q_t$. The current adaptation procedure forms
+
+$$\mathcal{D}_{adapt}=\mathcal{D}_s\cup S_t$$
+
+and optimizes the average cross-entropy over this set:
+
+$$\mathcal{L}_{CE}=-\frac{1}{|\mathcal{D}_{adapt}|}\sum_{(x,y)\in\mathcal{D}_{adapt}}\log p_{\theta}(y\mid x).$$
+
+After adaptation, $Q_t$ is used only for evaluation. The minimal independence condition is
+
+$$S_t\cap Q_t=\varnothing,$$
+
+verified in this work by SHA-256 hashes of the image files. If a query image were present in the support set, the result would no longer reflect genuine generalization to unseen target images.
+
+In episodic few-shot learning, an episode typically comprises an $N$-way $K$-shot problem with a controlled number of support examples per class; Prototypical Networks is one example of metric learning under this setup (Snell et al., 2017). The experiments in this work are not trained episodically, do not learn prototypes, and have an uneven number of support examples across the four classes. The precise term used in this paper is therefore **supervised domain adaptation with a few-shot support set**, not meta-learning or balanced $N$-way $K$-shot.
+
+### 2.6. Baseline Selection Criteria
+
+**Selection criteria for the baseline pool.** Table 3 comprises 17 baselines from 15 studies, selected by: (i) peer-reviewed work published 2023–2026 on image-based plant-disease classification; (ii) a clear architectural focus on deployability (lightweight CNN / ViT / hybrid) or a broad CNN-vs-ViT comparative study; (iii) architectural detail sufficient (layer configuration, embedding widths, head counts) to reproduce or adapt for the target task without contacting the authors; (iv) coverage of the four directions below rather than only the strongest family. Studies were excluded when they targeted detection/segmentation rather than classification, or when no corresponding classification output could be constructed. The baseline pool therefore represents the **deployment-oriented** literature of the last three years, not an exhaustive survey; the models were reimplemented and evaluated by us under a common protocol described in Section 4.1, so Table 3 does not use the figures originally published by the authors.
+
+Studies that perform only detection or segmentation with no image-level classification output were excluded from the baseline pool. Multitask models are kept if the original architecture has an explicit classification branch that can be adapted to the target task. Under this criterion, PDLC-ViT (Hemalatha and Jayachandran, 2024) is kept because it has a classification head alongside its segmentation branch. Since ChiliEdge-DS provides no masks, the experiment implements only the classification branch and removes the segmentation head and segmentation loss; the compared version is therefore denoted **PDLC-ViT (classification-only)**, not the original multitask model.
+
+### 2.7. Related Architectural Directions
+
+**Lightweight CNNs** keep parameters low through efficient attention or compact blocks. RTR_Lite_MobileNetV2 (Duhan et al., 2025) — our base architecture — adds triplet attention (Misra et al., 2021) and a spatial-attention residual block to MobileNetV2 (Sandler et al., 2018). ULEN (Wang et al., 2023) pushes ultra-lightweight design down to 28 thousand parameters; MRW-CNN (Joseph et al., 2024) and Lite-MDC (Bhagat et al., 2024) target real-time field deployment; CustomMNetV3L (Rahaman et al., 2026) adapts MobileNetV3-Large. Deep CNNs can extend the receptive field to aggregate broad context, but do not directly model pairwise interactions between every position the way self-attention does. **Vision Transformers** directly exploit relations between tokens but typically carry higher cost: ViT (Ali et al., 2025), TrIncNet (Gole et al., 2023) with a Trans-Inception block, PMVT (Li et al., 2023) for mobile deployment, and PDLC-ViT (Hemalatha and Jayachandran, 2024) for multitask localization plus classification. **Hybrid CNN-Transformer architectures** closest to this line of work include GrapeLeafNet (Karthik et al., 2024), MaizeFormerX (Rahman et al., 2026), and LDI-NET (Yang et al., 2024), typically at 3–9 million parameters. **Broad comparative studies** include Mishra et al. (2026), Sujatha et al. (2025), and the lightweight IoT meta-ensemble of Maurya et al. (2024).
+
+### 2.8. Evaluation Gap
+
+The works above use different datasets, splits, and training protocols; consequently, the figures each author reports do not form a single shared comparison that can simultaneously assess architectural contribution, response to synthetic image degradation, and background domain gap. This observation does not mean that every individual study lacks all such analyses, but rather points to the need for a protocol that combines these evaluation axes on the same data and training procedure. In this direction, ChiliEdgeNet stays under 700 thousand parameters by truncating MobileNetV2 and using three parameter-efficient Transformer techniques — 2D-RoPE, GQA, and RMSNorm. The experimental section retrains ablation variants from scratch with seed 42, tests on synthetically degraded images, uses paired McNemar tests for controlled ablation comparisons, and additionally examines domain transfer, XAI, and a reference comparison against a general-purpose multimodal model.
 
 ## 3. Proposed Method
 
 ### 3.1. Dataset
 
-**ChiliEdge-DS** comprises leaf and fruit images of five classes — `anthracnose`, `healthy`, `leaf_curl`, `leaf_spot`, `yellow_leaf` — field-collected in southern Vietnam, pre-split into `train`/`val`/`test` (1,597 / 491 / 373; 2,461 total) and preserved throughout so results reflect generalization to unseen data. Images were photographed against a white background to make the diseased region stand out, at ~12,000×9,000 native resolution later resized to 300×300; the dataset is released on Kaggle [23]. The split is close to balanced (largest/smallest class = 1.29 < 1.5), so no class weighting was applied and macro-F1 is not distorted by a dominant class. The white background is a **controlled** acquisition setting unlike a phone camera in the field; Section 4.3 probes part of this gap and Section 6 states what it does not cover.
+**ChiliEdge-DS** comprises 2,461 chili pepper leaf and fruit images across five classes: `anthracnose`, `healthy`, `leaf_curl`, `leaf_spot`, and `yellow_leaf`. The images were collected directly by the author in the Củ Chi area, Ho Chi Minh City, Vietnam. The data was split once, at an approximate 65:20:15 ratio, into `train`, `val`, and `test` sets of 1,597, 491, and 373 images respectively. This fixed split is kept unchanged throughout all main experiments.
+
+All original images in ChiliEdge-DS were photographed directly by the author, who holds rights to them. Images were taken against a white background using a smartphone camera; the device model was not recorded. Images have a native resolution of approximately 12,000 × 9,000 pixels, saved at 300 × 300 pixels, and resized to 224 × 224 for model input. The dataset is publicly released on Kaggle (Hải, 2026c).
+
+Labels were assigned manually by the author based on visual presentation: `anthracnose` shows dark or necrotic lesions consistent with anthracnose symptoms; `healthy` shows no clearly observable symptoms; `leaf_curl` shows leaf curling or twisting; `leaf_spot` shows discrete lesion spots on the leaf surface; and `yellow_leaf` shows predominant leaf yellowing. These are phenotype-based labels from visual observation, not pathogen identification confirmed by laboratory testing.
+
+ChiliEdge-DS is publicly released on Kaggle (Hải, 2026c) without an open license attached (the license field at the source remains "Unknown"). This is a deliberate choice by the author to retain full control over reuse of the original images collected by the author, not an editorial oversight.
+
+The ratio between the largest and smallest class is 1.29, so no class weighting was applied. Macro-F1 is reported alongside accuracy so that each class contributes equally to the aggregate result. The white background is a controlled acquisition condition; the gap with other-source images and natural backgrounds is examined in Section 4.5 and discussed in Section 6.
 
 **Table 1. Per-class distribution of ChiliEdge-DS across the fixed split.**
 
 | Class | Train | Val | Test | Total |
-|---|---|---|---|---|
+|---|---:|---:|---:|---:|
 | anthracnose | 264 | 81 | 62 | 407 |
 | healthy | 334 | 102 | 78 | 514 |
 | leaf_curl | 328 | 104 | 82 | 514 |
@@ -48,308 +153,448 @@ We push the hybrid direction further — under 700 thousand parameters via a wel
 
 ### 3.2. Architecture: ChiliEdgeNet
 
-Convolution's limited receptive field keeps MobileNetV2 local, whereas symptoms like leaf curl and yellowing span the leaf and need relations between distant regions. The backbone is therefore truncated and its tail replaced by a Transformer block operating on feature-grid cells as image tokens.
+CNNs exploit local features well but remain limited in directly modelling relations between distant regions. ChiliEdgeNet therefore combines a truncated MobileNetV2 with a Tiny Transformer block.
 
 #### 3.2.1. Backbone Cut Point
 
-We truncate at `features[1:14]`, yielding a **96-channel 14x14** map from a 224x224 input, i.e. **196 tokens**. The choice is mechanistic: in MobileNetV2 `features[14]` is the stride-32 stage, so cutting *after* it collapses the grid to **7x7 (49 tokens)**, at which resolution the convolutional stack has already integrated information across nearly the whole image, leaving the Transformer almost no spatial relation to learn. Every cut from `features[1:8]` to `features[1:14]` preserves the 14x14 grid; a preliminary sweep selected cut 14, the deepest of them. The grid also pays off for interpretability: the Attention Rollout map (Section 5.1) is **14x14 rather than 7x7** — four times finer.
+ChiliEdgeNet uses MobileNetV2 pretrained on ImageNet and keeps the layers from `features[0]` to `features[13]`. With a 224 × 224 input, the backbone produces a feature map of size **96 × 14 × 14**, corresponding to 196 spatial positions.
 
-#### 3.2.2. Feature Path
+The backbone is cut before `features[14]`, because this layer reduces the feature map to 7 × 7 and the token count from 196 to 49. The cut point `cut = 14` was chosen through a preliminary sweep and also gives the Attention Rollout map four times as many spatial positions as a 7 × 7 grid.
 
-A 1x1 convolution after the stem compresses 96 channels to the 128-dimensional embedding; the 196 grid cells enter the Transformer block as image tokens; a token-wise mean and a linear layer produce five class scores.
+#### 3.2.2. Feature Processing Path
+
+The image is processed through the following pipeline:
+
+1. MobileNetV2 `features[0:14]`;
+2. Conv 1 × 1 mapping 96 to 128 channels;
+3. BatchNorm, GELU, and dropout 0.1;
+4. Flatten the feature map into 196 image tokens, each with 128 dimensions;
+5. Tiny Transformer block;
+6. RMSNorm and mean pooling over the token dimension;
+7. Dropout 0.2 and a linear layer predicting five classes.
 
 #### 3.2.3. Tiny Transformer Block
 
-Despite the name, ChiliEdgeNet **is purely a vision model and contains no language component** — no text encoder, no tokenizer, no pretrained language weights. It is trained end-to-end on images only with a cross-entropy loss, like an ordinary classifier. Architecturally the block is a standard Vision Transformer except for **three parameter-efficient techniques borrowed from LLMs**:
+ChiliEdgeNet is a purely vision-based model, using no text encoder, tokenizer, or pretrained language weights. The Tiny Transformer uses a pre-norm structure consisting of:
 
-- **2D-RoPE** rotates query/key vectors by a coordinate-dependent angle per grid axis, encoding 2D position **without a single learned parameter** [18] — against a learned positional embedding needing a 196x128 = **25,088-parameter** table.
-- **GQA** lets four query heads share two key/value heads, saving **16,384** attention parameters [19].
-- **RMSNorm** drops LayerNorm's mean-subtraction and shift terms, saving **384** parameters [20].
+* `RMSNorm → GQA combined with 2D-RoPE → residual connection`;
+* `RMSNorm → MLP with GELU → residual connection`.
 
-Together these save **41,856 parameters (5.9% of the model)**; Section 4.4.2 measures, one technique at a time, whether that saving costs accuracy. At embedding dimension 128, one Transformer layer, MLP ratio 2 and dropout 0.1, the model has **671,173 parameters** — **35% fewer** than [5] (1,032,568).
+The model uses embedding dimension 128, four query heads, two key/value heads, an MLP ratio of 2, and dropout of 0.1.
+
+Three parameter-efficient techniques are used:
+
+* **2D-RoPE:** uses an axial variant for the image grid, replacing a learned positional embedding and saving **25,088 parameters** (Heo et al., 2025).
+* **GQA:** lets four query heads share two key/value heads, saving **16,384 parameters** (Ainslie et al., 2023).
+* **RMSNorm:** replaces LayerNorm, saving a total of **384 parameters** (Zhang and Sennrich, 2019).
+
+Together these three techniques save **41,856 parameters**, roughly **6.2%** of ChiliEdgeNet's parameter count. The model has **671,173 parameters**, about **35.0% fewer** than the base architecture (Duhan et al., 2025), which has 1,032,568 parameters.
 
 #### 3.2.4. Removed Blocks
 
-The base architecture [5] also places a Triplet Attention gate [17] and a residual block with a channel-attention gate (RES_Block, combining ECA and SE) after the stem. Neither is part of ChiliEdgeNet: a preliminary ablation on an otherwise identical model, replicated across two independent runs, showed that removing Triplet Attention makes the network *better* under both blur and low light — a negative result we acted on rather than reported around. RES_Block was subsequently dropped as well during a later architecture simplification pass; unlike Triplet Attention, we do not have a direct same-seed with/without ablation quantifying its individual contribution, so we make no quantitative claim about that decision.
+The base architecture (Duhan et al., 2025) additionally uses Triplet Attention (Misra et al., 2021) and a RES_Block combining ECA with SE. Neither block appears in ChiliEdgeNet.
+
+The necessity of Triplet Attention and `RES_Block` was examined with a 2×2 add-back design comprising four configurations: both blocks, only Triplet Attention, only `RES_Block`, and neither. Each configuration was retrained from scratch with seed 42 under the same protocol; results and removal contrasts are presented in Section 4.3. In this seed-42 run, adding either block did not improve accuracy in the evaluated contrasts, so the final model does not use them; this result should not be read as evidence of stability across multiple runs or of equivalence between the two architectures.
+
+![Figure 1. ChiliEdgeNet architecture. Panel A: overall pipeline from the 224x224x3 input through the truncated MobileNetV2 backbone (features[0:14]), a 1x1 convolution reducing channels, 196 tokens, the Tiny Transformer block, mean pooling and the classifier, with tensor shapes at each step. Panel B: detail of one Tiny Transformer block, showing RMSNorm, Grouped Query Attention with axial 2D-RoPE (4 query heads, 2 key/value heads) with a residual connection, and a GELU MLP (expansion ratio 2.0) with a residual connection.](../../results/architecture/chiliedgenet_architecture_en.png)
 
 ### 3.3. Evaluation Metrics
 
-We report top-1 accuracy, macro-averaged F1 (so minority classes weigh equally), and total parameter count. Every accuracy figure carries a 95% Wilson confidence interval at n = 373. For reference,
+This work reports top-1 accuracy, macro-F1, and total parameter count. Every test-set accuracy value carries a 95% Wilson confidence interval at $N = 373$.
 
-$$\text{Accuracy} = \frac{TP + TN}{TP + TN + FP + FN}, \qquad \text{F1-score} = 2 \cdot \frac{\text{Precision} \cdot \text{Recall}}{\text{Precision} + \text{Recall}}$$
+$$\text{Accuracy} = \frac{1}{N}\sum_{i=1}^{N}\mathbf{1}(\hat{y}_i = y_i)$$
+
+$$F1_c = 2\cdot\frac{\text{Precision}_c \cdot \text{Recall}_c}{\text{Precision}_c + \text{Recall}_c}$$
+
+$$\text{Macro-F1} = \frac{1}{C}\sum_{c=1}^{C}F1_c,\qquad C=5$$
 
 ## 4. Experiments and Results
 
 ### 4.1. Setup
 
-Experiments run on a Kaggle Notebook (NVIDIA Tesla T4) in PyTorch 2.10, training each model under two scenarios — **baseline** and **augmented** — per the configuration in Table 2; validation/test are never augmented. The best-validation checkpoint is reloaded before test evaluation. Every variant — proposed model and all ablations — uses **seed 123** and is re-initialised from it before each run, so variants differ only in the component under study.
+Experiments were run on Kaggle with an NVIDIA Tesla T4 GPU; the reproduction code uses PyTorch or TensorFlow depending on the architecture. Each baseline is evaluated under two scenarios:
 
-**Table 2. Training configuration.**
+- **Baseline:** no data augmentation applied.
+- **Augmented:** the data-augmentation techniques in Table 2 applied.
+
+The `val` and `test` sets are never augmented. For epoch-trained models, the checkpoint with the best validation criterion for each configuration is reloaded before test evaluation.
+
+**Common evaluation framework.** Seventeen baselines use the same ChiliEdge-DS dataset, the same fixed `train`/`val`/`test` split, seed 42, and the metrics accuracy, macro-F1, and parameter count. Both scenarios are evaluated on the same non-augmented test set. Architecture-dependent settings such as input size, batch size, epoch count, optimizer, and augmentation intensity follow each model's own reproduction design. The comparison is therefore controlled for data, split, and metric, but does not use a fully uniform training recipe across every architecture. Two cases where test results influenced selection — RTR_Lite_MobileNet (Duhan et al., 2025) as the primary baseline and InceptionV3 + SVM as the representative for Sujatha et al. (2025) — are disclosed in Section 4.2 and interpreted only as exploratory analysis.
+
+The common 17-baseline evaluation framework is limited to in-domain results on the ChiliEdge-DS test set: accuracy, macro-F1, and parameter count. Additional analyses of blur, low light, architectural ablation, XAI, and domain transfer were carried out only for ChiliEdgeNet and its corresponding controlled variants. This work therefore does not present these experiments as a uniform robustness or domain-transfer benchmark for all 17 baselines.
+
+The baselines were reproduced or adapted from the descriptions in the original works to fit the five-class classification task on ChiliEdge-DS. Significant changes are summarized below; these versions are therefore not treated as faithful reconstructions of the original models.
+
+| Baseline | Component retained | Component adapted |
+|---|---|---|
+| PDLC-ViT (classification-only; Hemalatha and Jayachandran, 2024) | Co-scale, co-attention, cross-attention, Transformer encoder, and classification head | Segmentation/localization branch removed; converted from multitask to five-class classification using only classification loss; ViT hyperparameters not fully disclosed were set during reproduction. |
+| LDI-NET (Yang et al., 2024) | Feature Tokenizer and Token Encoder | The multi-label decoder predicting plant type, disease, and severity was replaced with global average pooling and a five-class linear classifier. |
+| InceptionV3 + SVM (Sujatha et al., 2025) | Frozen backbone for feature extraction and SVM for classification | Adapted to ChiliEdge-DS; StandardScaler, PCA retaining 95% of variance, and the exploratory selection described in Section 4.2 were applied. |
+| Meta-Ensemble (Maurya et al., 2024) | MLP-Mixer, CNN–LSTM branch, and SVM meta-classifier | Output changed to five classes; patch-embedding configuration implemented as set here, since the original description did not provide full detail. |
+
+The proposed model and all ablation variants use **seed 42** and are re-initialized before each run. In the ablation experiments, configurations therefore differ only in the component removed, added back, or replaced.
+
+**Table 2. Training configuration for ChiliEdgeNet and its ablation variants.**
 
 | Item | Value |
 |---|---|
-| Input size | 224x224 |
+| Input image size | 224 × 224 |
 | Baseline transform | Resize, ToTensor, Normalize |
-| Augmented transform | 30-degree rotation, ColorJitter, horizontal flip, affine |
+| Augmented transform | 30° rotation, ColorJitter, horizontal flip, affine |
 | Epochs | 30 |
 | Batch size | 32 |
-| Loss | Cross-entropy, label smoothing 0.05 |
-| LR schedule | 10% linear warm-up, then cosine decay |
+| Loss function | Cross-entropy, label smoothing 0.05 |
+| Learning-rate schedule | 10% linear warm-up → cosine decay |
 | Learning rate (backbone / new blocks) | 1e-4 / 1e-3 |
-| Seed | 123 (every variant) |
+| Seed | **42** |
 
 #### 4.1.1. Run Count and Statistical Testing
 
-Results for the proposed model and its ablations come from a **single run (seed 123)**, a deliberate choice compensated by a stricter test protocol. With 373 test images each image is worth 0.27 pp, so a mean ± SD over a few seeds still cannot separate models in the 98–99% band (Section 6). Instead every model-to-model comparison **among our own variants** uses a **per-image paired McNemar test** on **exactly the same 373 images**, which answers *"is this difference within random noise?"* directly without estimating run-to-run variance. Each McNemar entry reports **b / c**: images the first model gets right and the second wrong, and vice versa. Every proposed-model and ablation variant in this paper is evaluated at the same seed 123 under an identical protocol, so the comparisons in Section 4.4 are like-for-like. The base architecture [5] compared against in Section 4.2 is a separate single run at **seed 42** (not reproduced at seed 123) — that comparison is therefore between two single runs under the same training protocol, not a seed-matched pair; Section 6 states this limitation.
+Results for the proposed model and its ablation variants are reported from **a single run with seed 42**. This work does not report a mean or standard deviation across multiple seeds and does not interpret these results as evidence of stability across initializations. The McNemar test is used to assess the difference between two models on a per-image basis over the same 373-image test set.
 
-#### 4.1.2. Inference Latency
+For each comparison, the notation $b/c$ denotes:
 
-The CPU figure used throughout (**19.28 ms/image**, 51.9 images/s) is measured on the CPU of the same Kaggle VM used for training — **Intel(R) Xeon(R) @ 2.00 GHz, 4 logical cores** — with PyTorch (FP32), batch 1, 10 warm-up then 50 timed iterations. On that machine a Tesla T4 gives **5.21 ms/image** at batch 1 and **0.82 ms/image** at batch 32. Two caveats: this is a **server-class x86 CPU, not edge hardware** (Section 6), and parameter count is **not** a proxy for speed — holding the grid at 14x14 rather than 7x7 makes the final convolutional stages work over four times as many spatial positions. Parameters govern memory footprint; feature-map resolution governs runtime. We report both.
+- $b$: images the first model predicts correctly while the second predicts incorrectly;
+- $c$: images the first model predicts incorrectly while the second predicts correctly.
 
-### 4.2. Comparison with SOTA Models
+McNemar's test checks whether the number of discordant cases in the two directions differs significantly. This test does not substitute for assessing variance across multiple seeds; that limitation is discussed in Section 6.
 
-The proposed model reaches **99.20%** (macro-F1 0.9923) baseline and **99.20%** (macro-F1 0.9922) augmented — the two scenarios agree on exactly the same 370/373 clean images. Table 3 places it against all 27 configurations reproduced from 15 SOTA studies under the same protocol: it sits among the accuracy leaders while being among the lightest. Because the baselines are single-run reproductions not individually tuned for this dataset, Table 3 reads as competitiveness under a common protocol, not a definitive ranking of the architectures.
+In this work, McNemar is applied to comparisons between ChiliEdgeNet and its ablation variants on the same 373 test images, corresponding to Tables 5–7, and to the paired comparison of the two checkpoints on the same 1,463 cross-dataset query images in Table 10b. The test is not used to rank all 17 baselines in Table 3.
+
+The base architecture RTR_Lite_MobileNet (Duhan et al., 2025) in Section 4.2 was also reproduced with **seed 42**. The comparison is therefore seed-matched and follows the same procedure, but each architecture was still run only once.
+
+#### 4.1.2. Inference Latency Measurement
+
+ChiliEdgeNet's CPU latency is **20.24 ms/image**, equivalent to **49.41 images/second**, measured on an Intel Xeon 2.00 GHz CPU with 4 logical cores on a Kaggle virtual machine. The measurement setup uses PyTorch FP32, batch size 1, with 10 warm-up iterations and 50 timed iterations. The 49.41 images/second figure is inference throughput converted from a single-image server benchmark, not the FPS of a camera application.
+
+On the same environment, the Tesla T4 GPU reaches:
+
+- **5.46 ms/image** at batch size 1;
+- **0.82 ms/image** at batch size 32.
+
+The CPU used is a server-class x86 CPU, not edge hardware. These results therefore reflect only the inference cost in the current experimental environment.
+
+### 4.2. Comparison with State-of-the-Art Models
+
+At seed 42, ChiliEdgeNet reaches **97.86%** in the baseline scenario and **98.93%** in the augmented scenario. The corresponding macro-F1 values are 0.9790 and 0.9897.
+
+A total of 17 baselines from 15 recent studies were reproduced and evaluated under the same framework, presented in full in Table 3. Because the baselines were each run once and not individually tuned for ChiliEdge-DS, this table reflects results under shared data, split, and metrics, not an absolute ranking between architectures.
+
+RTR_Lite_MobileNet (Duhan et al., 2025) was chosen as the primary baseline because it is the direct base architecture of ChiliEdgeNet and has the highest observed accuracy among the evaluated baselines on the ChiliEdge-DS test set. Since the test result contributed to this baseline selection, the direct comparison with RTR_Lite_MobileNet is treated as exploratory analysis on the current split, not an independent test evaluation establishing statistical ranking or a general superiority claim. The parameter reduction remains a structural comparison and does not depend on test-based selection.
+
+For the study by Sujatha et al. (2025), ten combinations of two backbones (VGG19 and InceptionV3) with five classifiers (SVM, kNN, Random Forest, AdaBoost, and Decision Tree) were evaluated on the same data split. The InceptionV3 + SVM configuration, which had the highest observed test accuracy, was chosen as the representative in Table 3. Because this selection used test results, it is likewise treated as exploratory analysis on the current split and is not used to claim statistical superiority or establish an absolute ranking between architectures.
 
 #### 4.2.1. Comparison with the Base Architecture
 
-This is the comparison the paper's claim rests on. ChiliEdgeNet reaches **99.20%** augmented, higher than RTR_Lite_MobileNet [5] (**98.12%**, macro-F1 0.9821) by **+1.07 pp — 4 images out of 373** — while using only **671,173 against 1,032,568 parameters, 35% fewer**. This is the headline result: more accurate and lighter at the same time, with no trade-off. A protocol note: ChiliEdgeNet here runs at **seed 123**, while the RTR_Lite_MobileNet [5] figure is a separate single reproduction at **seed 42** (Section 4.1) — same training/evaluation protocol, but not the same seed, so this is a comparison between two single runs rather than a seed-matched pair.
+In the seed-42 run, ChiliEdgeNet reaches **98.93% augmented accuracy**, higher than RTR_Lite_MobileNet (Duhan et al., 2025) at **98.12%**, a difference of **0.80 percentage points, or 3 images**, on the 373-image test set.
 
-The 4-image gap is small and deserves to be read at its true confidence: the two 95% Wilson intervals ([96.18, 99.09] and [97.66, 99.73]) overlap substantially — the ceiling of a 373-image test set cannot resolve two models both near 99% — and both come from a single run each (Section 6). The contribution that does not depend on this noise, and is therefore the one the paper emphasizes most, remains **parameter efficiency — the parameter count is an exact figure that needs no significance test.** Clean accuracy is also not the only axis that matters for a field tool; Section 4.3 evaluates degraded conditions, where the two *scenarios* separate sharply even though the *architectures* do not.
+ChiliEdgeNet uses **671,173 parameters**, while RTR_Lite_MobileNet uses **1,032,568 parameters**, a reduction of about **35%**. Both models use seed 42 and the same procedure, but each has been run only once; the 95% Wilson confidence intervals overlap, so the accuracy difference should be interpreted cautiously.
 
-**Table 3. Two-scenario accuracy, macro-F1, and parameters on the chili dataset.** *(Except ChiliEdgeNet, which runs at seed 123, rows are single seed-42 runs under the same protocol; only the most accurate variant of each model family is kept. Differences below ~1 pp correspond to fewer than 4 images out of 373, fall inside the Wilson interval, and should **not** be read as a reliable ranking — see Section 6.)*
+**Table 3. Two-scenario accuracy, macro-F1, and parameter count on the chili dataset.** *(Each model is a single seed-42 run under the same evaluation framework; differences below about 1 pp correspond to only 1–4 images out of 373.)*
 
-| Model | Acc Baseline (%) | Acc Augmented (%) | Macro-F1 (Aug) | Parameters |
+| Model | Acc Baseline (%) | Acc Augmented (%) | F1-macro (Aug) | Parameters |
 |---|---|---|---|---|
-| **ChiliEdgeNet (ours)** | **99.20** | **99.20** | **0.9922** | **671,173** |
-| RTR_Lite_MobileNet [5] | 97.32 | 98.12 | 0.9821 | 1,032,568 |
-| GrapeLeafNet [13] | 91.15 | 97.59 | 0.9769 | 5,308,035 |
-| PMVT-XS [6] | 82.31 | 96.25 | 0.9644 | 2,367,515 |
-| ResNet-50 [11] | 95.98 | 95.71 | 0.9586 | 23,597,957 |
-| EfficientNetB0 [11] | 94.37 | 94.37 | 0.9463 | 4,055,976 |
-| TrIncNet [3] | 80.70 | 90.62 | 0.9092 | 7,186,661 |
-| InceptionV3 + SVM [14] | 93.83 | 90.35 | 0.9069 | 25,112,264 |
-| Meta-Ensemble [1] | 88.74 | 88.74 | 0.8908 | 1,252,638 |
-| CustomMNetV3L [12] | 87.67 | 86.86 | 0.8639 | 3,275,909 |
-| ULEN [8] | 93.03 | 85.52 | 0.8603 | 28,069 |
-| MaizeFormerX [2] | 79.89 | 82.04 | 0.8185 | 3,553,061 |
-| AlexNet [11] | 85.52 | 77.75 | 0.7747 | 46,767,493 |
-| Lite-MDC [7] | 68.10 | 76.68 | 0.7658 | 2,288,965 |
-| ViT [15] | 72.39 | 73.99 | 0.7472 | 50,013,061 |
-| MRW-CNN [4] | 74.26 | 73.73 | 0.7377 | 797,413 |
-| PDLC-ViT [10] | 74.26 | 70.78 | 0.7054 | 17,547,269 |
-| LDI-NET [9] | 70.78 | 68.63 | 0.6839 | 8,798,597 |
+| **ChiliEdgeNet (ours)** | **97.86** | **98.93** | **0.9897** | **671,173** |
+| RTR_Lite_MobileNet (Duhan et al., 2025) | 97.32 | 98.12 | 0.9821 | 1,032,568 |
+| GrapeLeafNet (Karthik et al., 2024) | 91.15 | 97.59 | 0.9769 | 5,308,035 |
+| PMVT-XS (Li et al., 2023) | 82.31 | 96.25 | 0.9644 | 2,367,515 |
+| ResNet-50 (Mishra et al., 2026) | 95.98 | 95.71 | 0.9586 | 23,597,957 |
+| EfficientNetB0 (Mishra et al., 2026) | 94.37 | 94.37 | 0.9463 | 4,055,976 |
+| TrIncNet (Gole et al., 2023) | 80.70 | 90.62 | 0.9092 | 7,186,661 |
+| InceptionV3 + SVM (Sujatha et al., 2025) | 93.83 | 90.35 | 0.9069 | 25,112,264 |
+| Meta-Ensemble (Maurya et al., 2024) | 88.74 | 88.74 | 0.8908 | 1,252,638 |
+| CustomMNetV3L (Rahaman et al., 2026) | 87.67 | 86.86 | 0.8639 | 3,275,909 |
+| ULEN (Wang et al., 2023) | 93.03 | 85.52 | 0.8603 | 28,069 |
+| MaizeFormerX (Rahman et al., 2026) | 79.89 | 82.04 | 0.8185 | 3,553,061 |
+| AlexNet (Mishra et al., 2026) | 85.52 | 77.75 | 0.7747 | 46,767,493 |
+| Lite-MDC (Bhagat et al., 2024) | 68.10 | 76.68 | 0.7658 | 2,288,965 |
+| ViT (Ali et al., 2025) | 72.39 | 73.99 | 0.7472 | 50,013,061 |
+| MRW-CNN (Joseph et al., 2024) | 74.26 | 73.73 | 0.7377 | 797,413 |
+| PDLC-ViT (classification-only; Hemalatha and Jayachandran, 2024) | 74.26 | 70.78 | 0.7054 | 17,547,269 |
+| LDI-NET (Yang et al., 2024) | 70.78 | 68.63 | 0.6839 | 8,798,597 |
 
-<!-- SBS -->
 #### 4.2.2. Error Analysis
 
-On the 373 augmented test images the model misclassifies only 3 (Fig. 1). All three involve `yellow_leaf`: one `yellow_leaf` image read as `leaf_curl`, and one `healthy` and one `leaf_spot` absorbed into `yellow_leaf` — the ambiguous chlorosis/curling boundary where a human eye also hesitates. With so few errors the test set has limited resolving power: 99.20% carries a 95% Wilson interval of [97.66%, 99.73%], overlapping every model within ~1 pp in Table 3 (Section 6).
+In the augmented scenario, ChiliEdgeNet mispredicts the following images:
 
-![Figure 1. Confusion matrix of the proposed model on the test set (augmented scenario).](figs/c14_cm_s2.png)
-<!-- /SBS -->
+- one `leaf_spot` image predicted as `healthy`;
+- three `yellow_leaf` images predicted as `leaf_curl`.
 
-### 4.3. Robustness to Degraded Capture Conditions
+Accuracy reaches 98.93% with a 95% Wilson confidence interval of **[97.28%, 99.58%]**. The remaining errors cluster at the boundary between yellowing and curling symptoms.
 
-The decisive question for a field tool, as Section 4.2 already posed it, is which model retains accuracy once the image is no longer perfect — not who leads on a clean-image axis that has already saturated. We add degradations applied at **test time** in the spirit of ImageNet-C: neither transform appears during training, and the corrupted sets are generated **once with fixed seeds**, so every model in Sections 4.3–4.4 is scored on pixel-identical inputs.
+![Figure 2. Confusion matrix of ChiliEdgeNet on the test set (augmented scenario).](../../results/notebook_c1/c14_cm_s2.png)
 
-**Table 4. The two degradation conditions and what they model.** *(Severity measured over all 373 images.)*
+### 4.3. Ablation Analysis
 
-| Condition | Real-world factor | Parameter | PSNR | Pixels changed |
-|---|---|---|---|---|
-| Gaussian blur | camera shake, defocus | kernel k = 5 | 33.4 dB | 21.41% |
-| Brightness reduction | shooting under foliage or at dusk | factor x0.4 | 9.9 dB | 99.97% |
+Every variant is retrained from scratch with **seed 42**, using the same data, training recipe, and 30 epochs. The current model contains neither Triplet Attention nor `RES_Block`. Since clean-image accuracy is already near saturation, the role of the Tiny Transformer is further examined with a multi-level stress test on synthetically degraded images.
 
-**Table 5. The proposed model across the three conditions, with 95% Wilson intervals (n = 373).**
+#### 4.3.1. Block-Level Ablation
 
-| Condition | Baseline (%) | Augmented (%) | Wilson 95% (Augmented) |
-|---|---|---|---|
-| Clean | 99.20 | **99.20** | [97.66 – 99.73] |
-| Blur (k=5) | 91.42 | **95.98** | [93.47 – 97.55] |
-| Low light (x0.4) | 86.06 | **99.20** | [97.66 – 99.73] |
-| **Mean** | 92.23 | **98.12** | – |
+Two direct cuts respectively remove the Tiny Transformer and disable every skip connection of the `InvertedResidual` blocks in the backbone. For Triplet Attention and `RES_Block`, this work uses a 2×2 add-back design: both present, only Triplet, only `RES_Block`, and neither (the current model).
 
-Table 5 shows what augmentation actually buys, entirely hidden if one looks only at clean images. On clean data the two scenarios are **exact ties** (both 370/373). Under **blur** they differ by **4.56 pp** (91.42% against 95.98%, 17 images), and under **low light** by **13.14 pp** — 86.06% against 99.20%, i.e. **49 images** — with their Wilson intervals ([82.17, 89.21] against [97.66, 99.73]) not coming close to overlapping. The ColorJitter/RandomAffine components teach tolerance to intensity and geometric variation, real capture conditions when photographing under foliage or at dusk. **The proposed model is therefore the augmented one**; all ablations use it.
+**Table 4. Architectural ablation results on clean images, seed 42.**
 
-Worth stating plainly: on this dataset **most of the robustness to blur and low light is bought by the training recipe, not the architecture**. Section 4.4 measures what the architecture adds on top of that — smaller than the training recipe, but no longer negligible: the Transformer block's clearest contribution lands exactly on the blur axis.
+| Configuration | Parameters | Accuracy (%) |
+|---|---:|---:|
+| **Current: no Triplet/RES_Block** | **671,173** | **98.93** |
+| Remove Tiny Transformer | 555,845 | 99.20 |
+| Disable MobileNetV2 residuals | 671,173 | 96.51 |
+| Add Triplet + RES_Block | 671,732 | 97.59 |
+| Triplet only | 671,473 | 98.12 |
+| RES_Block only | 671,432 | 98.93 |
 
-![Figure 2. The test conditions: clean, Gaussian blur (k = 5), and brightness reduction (x0.4), one sample per class.](figs/c14_bench_samples.png)
+**Table 5. McNemar test for the two direct cuts on clean images.** Positive delta means the current model outperforms the variant; $p_{Holm}$ is corrected for two predefined contrasts.
 
-### 4.4. Ablation Study
+| Cut | Delta (pp) | b / c | $p$ | $p_{Holm}$ |
+|---|---:|---:|---:|---:|
+| Remove Tiny Transformer | −0.27 | 0 / 1 | 1.0000 | 1.0000 |
+| Disable MobileNetV2 residuals | +2.41 | 10 / 1 | 0.0117 | **0.0234** |
 
-Every variant is **retrained from scratch** with the component under study removed or replaced, using the same seed 123, recipe and 30 epochs; the baseline row is the proposed model trained in the same pipeline. We deliberately do **not** use inference-time knockout: that measures how much a trained network *depends* on a block, not how much the block *contributes*, and conflating the two is a known methodological error.
+On clean images, the variant without the Transformer scores one image higher, so this run does not show the block's benefit. In contrast, disabling the residual connections reduces net correct predictions by nine, and the difference remains significant after Holm correction. This result supports keeping MobileNetV2's active skip branches.
 
-#### 4.4.1. Block-Level Ablation
+**Table 6. Three contrasts removing Triplet Attention/RES_Block from the both-present configuration.** Holm-corrected $p$-values for three contrasts on clean images.
 
-**Table 6. Removing each block and retraining (augmented scenario, seed 123).**
+| Contrast | Delta (pp) | $p_{Holm}$ |
+|---|---:|---:|
+| Remove `RES_Block` | +0.54 | 0.625 |
+| Remove Triplet Attention | +1.34 | 0.375 |
+| Remove both, back to the current model | +1.34 | 0.375 |
 
-| Variant | Parameters | Clean | Blur | Low light | Mean |
-|---|---|---|---|---|---|
-| **Full (proposed)** | 671,173 | **99.20** | **95.98** | **99.20** | **98.12** |
-| w/o Tiny Transformer | 555,845 | 99.20 | 90.08 | 97.86 | 95.71 |
+No contrast reaches significance after Holm correction. In this run, `RES_Block` alone gives the same accuracy as the current model, while Triplet Attention shows a trend toward lower performance. The results support removing both blocks to avoid unnecessary complexity, but do not prove the architectures are equivalent.
 
-**Table 7. Per-image paired McNemar tests, full model against each variant.** *(Positive delta = the full model is better, i.e. the block contributes. b / c = images the full model gets right and the variant wrong, and vice versa.)*
+#### 4.3.2. Stress Test on the Role of the Tiny Transformer
 
-| Block removed | Condition | Delta (pp) | b / c | *p* |
-|---|---|---|---|---|
-| Tiny Transformer | **Blur** | **+5.90** | 26 / 4 | **0.0001** |
-| Tiny Transformer | Low light | +1.34 | 5 / 0 | 0.0625 |
-| Tiny Transformer | Clean | 0.00 | 0 / 0 | 1.000 |
+The stress test uses the same **373 test images** and two seed-42 checkpoints: full ChiliEdgeNet and a variant retrained after removing the Tiny Transformer. Gaussian blur was generated with `cv2.GaussianBlur` (`sigmaX=0`) at kernel sizes 3, 5, 7, and 9; brightness reduction was generated by multiplying all pixel intensities by 0.8, 0.6, 0.4, and 0.2. Eight conditions were fixed before scoring. The clean image is only a reference point and is not part of the family of eight tests; Holm-corrected exact McNemar tests are applied across the eight degradation conditions.
 
-**The Tiny Transformer's clearest measurable contribution is under blur, and it reaches statistical significance.** Removing it costs **5.90 pp** under blur — 26 images broken against just 4 improved, *p* = 0.0001 — while on clean images the two models are **identical** (0/0, *p* = 1.000). It adds a further 1.34 pp under low light (*p* = 0.0625, at the edge of *p* < 0.05). The block is worth 115,328 parameters. The wider point survives regardless: whatever the Transformer contributes, it is **not** clean accuracy — it only shows up once the input is already degraded.
+![Figure 3. Accuracy of ChiliEdgeNet with and without the Tiny Transformer across Gaussian blur levels and synthetic brightness-reduction factors.](../../results/stress/c14_tf_stress_curves.png)
 
-#### 4.4.2. Technique-Level Ablation
+**Table 7. Stress test of the Tiny Transformer under synthetic degradation levels.** Positive delta means the model with the Tiny Transformer performs better.
 
-The technical contribution named in the title is the integration of **three** parameter-efficient LLM techniques. Block-level ablation cannot separate them: with a single Transformer layer, removing "the Transformer block" removes all three at once. Each variant here replaces **exactly one** technique with its standard counterpart, holds everything else fixed, and retrains from scratch. This section answers whether each technique earns its parameter saving.
+| Condition | With Transformer (%) | Without Transformer (%) | Delta (pp) | b / c | $p_{Holm}$ |
+|---|---:|---:|---:|---:|---:|
+| Clean | 98.93 | 99.20 | −0.27 | 0 / 1 | – |
+| Blur, kernel 3 | 97.86 | 98.12 | −0.27 | 2 / 3 | 1.0000 |
+| Blur, kernel 5 | 97.32 | 96.25 | +1.07 | 6 / 2 | 1.0000 |
+| Blur, kernel 7 | 94.91 | 92.76 | +2.14 | 15 / 7 | 0.8028 |
+| Blur, kernel 9 | 92.23 | 89.28 | +2.95 | 22 / 11 | 0.5610 |
+| Brightness × 0.8 | 98.66 | 99.20 | −0.54 | 0 / 2 | 1.0000 |
+| Brightness × 0.6 | 98.66 | 98.93 | −0.27 | 1 / 2 | 1.0000 |
+| Brightness × 0.4 | 98.66 | 98.12 | +0.54 | 3 / 1 | 1.0000 |
+| Brightness × 0.2 | **97.05** | 93.30 | **+3.75** | 16 / 2 | **0.0105** |
 
-**Table 8. Replacing each LLM technique with its standard counterpart (augmented scenario, seed 123).**
+On clean images and mild degradation levels, the Tiny Transformer does not yet produce a clear difference. From kernel 5 onward, the advantage under blur grows with the degradation level, but individual contrasts do not reach significance after Holm correction. At brightness factor 0.2, the full model reaches 97.05%, 3.75 pp higher, reducing errors from 25 to 11; this is the only contrast that remains significant after correction. These results suggest the Tiny Transformer helps maintain representations under severe visual degradation, rather than providing a stable advantage on clean images. This benefit comes with 115,328 additional parameters relative to the variant without the Transformer.
 
-| Variant | Replaces | Δ params | Clean | Blur | Low light | Mean |
-|---|---|---|---|---|---|---|
-| **Proposed** | 2D-RoPE + GQA + RMSNorm | — | 99.20 | 95.98 | **99.20** | **98.12** |
-| `learned_pe` | 2D-RoPE swapped for learned PE | **+25,088** | 99.20 | 95.44 | 98.66 | 97.77 |
-| `mha` | GQA swapped for Multi-Head Attention | **+16,384** | 99.20 | **96.25** | 98.12 | 97.86 |
-| `layernorm` | RMSNorm swapped for LayerNorm | +384 | 98.66 | **96.25** | 97.86 | 97.59 |
+#### 4.3.3. Technique-Level Ablation
 
-**Table 9. Per-image paired McNemar tests, proposed block against each single-technique replacement.** *(Positive delta = the proposed block is better.)*
+Each variant replaces exactly one technique in the Tiny Transformer with its standard counterpart while keeping the remaining components unchanged.
 
-| Technique replaced | Condition | Delta (pp) | b / c | *p* |
-|---|---|---|---|---|
-| 2D-RoPE swapped for learned PE | Low light | +0.54 | 2 / 0 | 0.500 |
-| 2D-RoPE swapped for learned PE | Blur | +0.54 | 4 / 2 | 0.688 |
-| 2D-RoPE swapped for learned PE | Clean | 0.00 | 1 / 1 | 1.000 |
-| GQA swapped for MHA | Low light | +1.07 | 5 / 1 | 0.219 |
-| GQA swapped for MHA | Blur | −0.27 | 6 / 7 | 1.000 |
-| GQA swapped for MHA | Clean | 0.00 | 2 / 2 | 1.000 |
-| RMSNorm swapped for LayerNorm | Low light | +1.34 | 5 / 0 | 0.063 |
-| RMSNorm swapped for LayerNorm | Blur | −0.27 | 4 / 5 | 1.000 |
-| RMSNorm swapped for LayerNorm | Clean | +0.54 | 2 / 0 | 0.500 |
+**Table 8. Ablation of individual techniques in the Tiny Transformer on clean images, seed 42.**
 
-**All three techniques are close to free — none loses with statistical significance.** This is the clearest departure from our previous architecture version (with RES_Block, seed 42), where RMSNorm lost to LayerNorm significantly under blur; at the current architecture and seed, the comparison closest to *p* < 0.05 anywhere in Table 9 is RMSNorm/low light (*p* = 0.063), and there RMSNorm (proposed) actually **leads** LayerNorm rather than losing.
+| Variant | Replaced component | Parameters | Δ params | Accuracy (%) |
+|---|---|---:|---:|---:|
+| **ChiliEdgeNet** | 2D-RoPE + GQA + RMSNorm | **671,173** | – | **98.93** |
+| `learned_pe` | 2D-RoPE → learned PE | 696,261 | +25,088 | 98.93 |
+| `mha` | GQA → MHA | 687,557 | +16,384 | 98.93 |
+| `layernorm` | RMSNorm → LayerNorm | 671,557 | +384 | 98.39 |
 
-**2D-RoPE is close to free.** It encodes position with **zero learned parameters**; the learned alternative needs a 196x128 = **25,088-parameter** table, 3.7% of the model. No axis separates them (*p* between 0.500 and 1.000); the proposed block edges out the learned alternative under both degraded axes and ties on clean. 2D-RoPE therefore buys a 25,088-parameter saving at no measurable accuracy cost — and unlike a learned table, carries no dependence on the token count fixed at training time.
+On clean images, learned PE and MHA give the same correct/incorrect predictions as ChiliEdgeNet; LayerNorm is lower by two images, but McNemar shows no significance ($p=0.5$). The three choices — 2D-RoPE, GQA, and RMSNorm — are not shown by this single-seed data to be superior in accuracy. In terms of parameter structure, they respectively avoid 25,088, 16,384, and 384 parameters relative to the standard alternatives, totalling **41,856 parameters** if all three standard alternatives were used simultaneously; the combined three-replacement variant has not been separately trained.
 
-**GQA is close to free.** Sharing two key/value heads across four query heads saves **16,384 parameters**. The proposed block ties MHA on clean, trails insignificantly under blur (−0.27 pp, *p* = 1.000), and leads under low light (+1.07 pp, *p* = 0.219) — none of it significant. The memory advantage that motivated GQA for large LLMs is not material at this scale, but the parameter saving is real and does not carry a measurable cost here.
+### 4.4. Model Interpretability
 
-**RMSNorm is also close to free — no longer the "losing" technique it was in our previous architecture version.** LayerNorm is only insignificantly better under blur (−0.27 pp, *p* = 1.000); under low light and on clean, RMSNorm (proposed) actually leads LayerNorm (+1.34 pp *p* = 0.063 and +0.54 pp *p* = 0.500), though neither reaches significance. Dropping LayerNorm's mean-subtraction and shift terms saves 0.06% of the model with no measurable accuracy cost at the current architecture and seed. This is a notable reversal from our own previous architecture version (with RES_Block, seed 42), where the same comparison gave *p* = 0.019 in the opposite direction — further reason Section 6 frames these ablation findings as single-seed observations, not established effects.
+The analyses in this section use **ChiliEdgeNet's original checkpoint**, trained only on ChiliEdge-DS and used to produce the in-domain results in Table 3. The augmented checkpoint used for the domain-transfer experiment in Section 4.5 is a separate adapted model and is not used to produce the interpretability results below.
 
-**Statistical scope.** All results here are **single-seed**. Table 9 comprises 9 tests (3 variants x 3 conditions), so the Bonferroni threshold is α = 0.05/9 ≈ 0.006; **no comparison in Table 9 reaches even *p* < 0.05** (the closest is RMSNorm/low light at *p* = 0.063). We therefore present this section as **observations that inform design**, not established effects — and specifically do not conclude that any of the three techniques "loses." What depends on no test is the arithmetic: 2D-RoPE and GQA together remove **41,472 parameters** and no measurement in Tables 8–9 shows an accuracy cost for any of the three techniques.
+#### 4.4.1. Explainable AI (XAI)
 
-### 4.5. Realtime Laptop-Camera Demo
+High accuracy alone is not sufficient to interpret model behaviour, particularly since ChiliEdge-DS predominantly uses a controlled white background. This work applies **three complementary XAI methods** on the ChiliEdgeNet augmented-scenario checkpoint (seed 42), each using one representative image per class. **Gradient SHAP** (Erion et al., 2021) estimates pixel contribution from gradients relative to a baseline distribution; **Occlusion Sensitivity** (Zeiler and Fergus, 2014) occludes 32×32-pixel regions in turn and measures the change in output; **Attention Rollout** (Abnar and Zuidema, 2020) aggregates attention flow through the Transformer block across the full 14×14 grid. Because the architecture uses mean pooling and has no `CLS` token, the Rollout map is produced by averaging attention flow across the 196 tokens, rather than tracing from a single output token.
 
-Beyond the static benchmark on the fixed test set (Sections 4.2–4.4), we additionally exercise the proposed model in a **live, real-time** inference pipeline: opening the laptop webcam, running the exact ChiliEdgeNet checkpoint (augmented, 671,173 parameters) inside a camera loop, classifying only a fixed centre ROI, and measuring end-to-end latency (preprocessing plus inference) on the laptop CPU for each prediction. The input is a diseased-leaf image displayed on a phone screen and held up to the ROI; ground truth is manually tagged at the moment of capture so that correctness can be scored.
-
-**Table 11. Realtime laptop-camera demo — 5 measurements, one per disease class (n = 5).**
-
-| Class (ground truth) | Prediction | Correct | Confidence (%) | Latency (ms) |
-|---|---|---|---|---|
-| anthracnose | anthracnose | Yes | 93.98 | 23.62 |
-| healthy | healthy | Yes | 95.24 | 15.51 |
-| leaf_curl | leaf_curl | Yes | 94.33 | 18.20 |
-| leaf_spot | leaf_spot | Yes | 95.94 | 13.73 |
-| yellow_leaf | yellow_leaf | Yes | 95.07 | 19.34 |
-| **Mean** | | **5/5 (100%)** | **94.91** | **18.08** |
-
-All 5/5 measurements were classified correctly, with mean top-1 confidence 94.91% and mean latency 18.08 ms/image (median 18.20; min 13.73; max 23.62 ms) — measured on the laptop CPU, distinct from the machine behind the 19.28 ms/image figure (Kaggle VM CPU) in Section 4.1, since it also includes webcam capture and preprocessing overhead rather than inference alone.
-
-This result must be read within its true scope: **n = 5 is far too small to be a statistical benchmark** — unlike the 373-image test set used throughout the paper — so no Wilson interval or McNemar test is computed for this table. The laptop CPU here remains a consumer-class x86 chip, not a genuine embedded or mobile chip, and the input images are a secondary capture of a phone screen rather than real field photographs. The result should therefore be read only as **qualitative proof of feasibility**: the camera-to-preprocessing-to-inference-to-display pipeline works correctly end to end, and latency remains in the low tens of milliseconds on an ordinary consumer CPU with no GPU required. It complements — and does not substitute for — the still-missing measurement on physical edge hardware (Section 6).
-
-## 5. Model Interpretability
-
-### 5.1. Explainable AI
-
-High accuracy alone is not enough to trust a model, which could exploit spurious cues such as background — a real risk here, where every image is shot against a white backdrop. We ran eight interpretability methods on the trained model (Grad-CAM [21] and Grad-CAM++, Score-CAM, Integrated Gradients, SHAP, LIME, Occlusion Sensitivity, Attention Rollout) and present the **two whose mechanisms are furthest apart**, since they are unlikely to fail in the same way. **Occlusion Sensitivity** [24] is a **perturbation** method: it slides a grey patch over the image and measures the drop in true-class probability, **never looking inside the model** — no gradients, no weights, no activations — so it is evidence independent of any architectural assumption. **Attention Rollout** [22] does the opposite: it reads the attention matrices **inside** the Transformer block and traces attention flow from the output token back to the input grid.
-
-One method treats the model as a black box; the other reads the internals of the very block we propose. Both localise disease regions and ignore the background (Figures 3-4): the Occlusion map lights up on diseased tissue — rot lesions for anthracnose, spot clusters for leaf spot, chlorotic areas for yellow leaf — while Attention Rollout concentrates on the leaf/fruit centre. Agreement between two mechanisms sharing no assumptions is evidence that the accuracy reflects genuine disease features rather than an artefact of one technique or a background cue. The cut point of Section 3.2 pays a direct dividend: with a 14x14 grid the Rollout map has **196 cells instead of 49** — fine enough to delineate a symptom region rather than merely indicate a quadrant.
+The three maps offer distinct perspectives (Figures 4–6): Gradient SHAP gives pixel-level attribution distributed over the object surface; Occlusion shows region-level sensitivity; Attention Rollout reflects the Transformer's internal attention propagation. Across the five illustrative images, high-response regions generally intersect with the leaf/fruit or the diseased area, though the degree of concentration differs across methods and classes. Since the evaluation uses only one image per class and no ground-truth symptom segmentation exists, this result is an exploratory qualitative survey only; it does not prove the model has learned correct pathological features, fully ignored the background, or captured a genuine causal relationship. The 14×14 grid provides 196 spatial positions, four times more than a 7×7 grid, giving the Rollout map finer visual resolution.
 
 <!-- IMG2 -->
-![Figure 3. Occlusion Sensitivity for the five disease classes (top: input; bottom: sensitivity overlay). Bright areas are regions whose occlusion costs the model the most confidence; the method treats the model as a black box.](figs/xai_occlusion.png)
+![Figure 4. Occlusion Sensitivity for the five disease classes (top: original image; bottom: sensitivity map overlay). Bright regions are where occlusion costs the model the most confidence; this technique treats the model as a black box.](../../results/notebook_c2/xai_occlusion.png)
 
-![Figure 4. Attention Rollout of the Tiny Transformer block on the 14x14 grid; attention concentrates on the object centre (leaf/fruit), ignoring the background.](figs/xai_attn_rollout.png)
+![Figure 5. Gradient SHAP for the five classes (top: original image; bottom: pixel-attribution magnitude overlay), computed with 20 samples and two constant baseline tensors (0 and 1) in the normalized input space.](../../results/notebook_c2/xai_shap.png)
+
+![Figure 6. Attention Rollout of the Tiny Transformer block on the 14×14 grid, aggregated by averaging attention flow across the 196 tokens since the model uses mean pooling with no `CLS` token.](../../results/notebook_c2/xai_attn_rollout.png)
 <!-- /IMG2 -->
 
-### 5.2. Comparison with a Vision LLM
+#### 4.4.2. Comparison with a General-Purpose Multimodal Model
 
-As an independent cross-check, a general-purpose multimodal LLM (Gemini 3.1 Flash Lite, accessed 8 July 2026) classifies the raw images zero-shot; this is a feasibility contrast, not a peer comparison (the LLM is untrained here, our model specialized). Over the **full 373-image test set** (all calls returned successfully) the LLM reaches **78.55%** against **99.20%**, with errors concentrated on the `leaf_curl`/`yellow_leaf` boundary our model also finds hardest. The specialized model additionally runs offline at near-zero marginal cost with structured five-class outputs, which a cloud LLM cannot offer on-device. Both systems are scored on the **same 373 images**.
+This work uses the general-purpose multimodal model **Gemini 3.1 Flash Lite**, API model ID `gemini-3.1-flash-lite`, accessed through the Gemini API with an API key created and managed via Google AI Studio. The model was accessed on **8 July 2026** (Google DeepMind, 2026) to classify the raw images directly in a zero-shot setting. No temperature, top-p, or token limit was set separately; the run used the endpoint's default generation configuration at the access date. This is a reference comparison, not a fully matched baseline: Gemini was not fine-tuned on ChiliEdge-DS, whereas ChiliEdgeNet is a specialized classifier trained with supervision for exactly the five classes.
 
-**On latency.** The ~110x figure contrasts a **local 19.28 ms inference** with a **2,117 ms median cloud API round-trip**. These are not like-for-like: the round-trip includes network latency, server-side queueing and provider-side batching, none of which are computation by the LLM. It is a **system-level latency comparison** — what a user of each deployment would actually wait — not a claim that one architecture computes ~110x faster. The accuracy gap is a fair comparison; the latency gap is a deployment-mode comparison. A commercial endpoint is also a moving target: versions update continuously, so this is reproducible only against the stated version and access date.
+**Prompt used.** The prompt below is an English translation, provided for readability; the exact text actually sent to the API was in unaccented Vietnamese (reproduced verbatim in the Vietnamese-language version of this paper, Section 4.4.2, for exact reproducibility). The translation is faithful sentence-for-sentence, including the instruction that the `label` field itself be written in Vietnamese — that field's values are not used for scoring (see below) and were left in Vietnamese rather than re-run, since translating them would not change any reported number:
 
-**Table 10. Proposed model versus Gemini 3.1 Flash Lite on the full 373-image test set (accessed 8 July 2026).**
+```text
+You are a plant pathology expert. The image shows a chili pepper leaf/fruit that may be diseased.
+Identify ONE single rectangular region bounding the clearest abnormality/disease symptom
+in the image (disease spots, rot lesions, yellowing areas, curling/wrinkling areas...).
+If the leaf is completely healthy, bound the entire leaf/fruit.
+
+Then classify the image into EXACTLY ONE of the following 5 labels (you must choose exactly 1 of the 5,
+you may not create another label): anthracnose, healthy, leaf_curl, leaf_spot, yellow_leaf.
+
+Return ONLY a single JSON array in the following format, with nothing else besides the JSON:
+[{"box_2d": [ymin, xmin, ymax, xmax], "label": "short_symptom_name_in_vietnamese", "predicted_class": "one_of_the_5_labels_above", "reason": "one short sentence explaining the VISUAL BASIS for choosing that label"}]
+box_2d coordinates on a 0-1000 scale (normalized to image height/width).
+```
+
+**Label mapping and invalid outputs.** The `predicted_class` field is scored directly against exactly one of the five strings `anthracnose`, `healthy`, `leaf_curl`, `leaf_spot`, and `yellow_leaf`; no synonym translation, manual relabeling, or post-hoc mapping is applied. The `label` field and the `reason` sentence are stored for inspection only and do not enter the accuracy computation. The parser prefers JSON; if the JSON is malformed, a regular expression is used to extract the fields. API errors, missing required fields, unparseable output, or a `predicted_class` outside the five labels are retried up to three times; if still unsuccessful, the record is tagged `gemini_error`, excluded from Gemini's accuracy denominator, and the error count must be reported separately alongside coverage.
+
+The artifact currently stores all **373 images**, run on **8 July 2026**, with **100%** of calls valid and no labels outside the allowed set. Gemini reaches **78.55%** accuracy, while ChiliEdgeNet reaches **98.93%** on the same 373-image test set — matching Table 3. Of the three `yellow_leaf` images in the test set, two are also two of the three errors where ChiliEdgeNet mispredicted `leaf_curl`, as noted in Section 4.2.2, while ChiliEdgeNet correctly classified the third; Gemini correctly classified all three as `yellow_leaf`.
+
+**On latency.** The approximately 105x figure contrasts **20.24 ms of local inference** with a **2,123 ms median cloud API round-trip**. The two figures are not equivalent: the round-trip includes network latency, server-side queueing, and provider-side batching — none of which is computation intrinsic to the model. This is a comparison between two deployment modes, not a claim that one architecture computes roughly 105x faster than the other. Similarly, although accuracy is computed on the same 373 images, the accuracy gap does not constitute a peer comparison, since the two systems differ in training regime and degree of specialization. The commercial endpoint may also be updated over time, so this comparison is reproducible only against the stated model ID, prompt, and access date.
+
+**Table 9. Comparison of ChiliEdgeNet with Gemini 3.1 Flash Lite on the full 373-image test set (accessed 8 July 2026).**
 
 | System | Accuracy | Latency/image |
 |---|---|---|
-| **ChiliEdgeNet (local CPU)** | **99.20%** | **19.28 ms** (local inference) |
-| Gemini 3.1 Flash Lite | 78.55% | 2,117 ms (median API round-trip) |
+| **ChiliEdgeNet (local CPU)** | **98.93%** | **20.24 ms** (local inference) |
+| Gemini 3.1 Flash Lite (`gemini-3.1-flash-lite`) | 78.55% | 2,123 ms (median API round-trip) |
 
-## 6. Limitations
+### 4.5. Four-Class Cross-Dataset Evaluation After Few-Shot Adaptation
 
-**Statistical resolution of the test set.** With 373 images a single image is worth 0.27 pp and the best model errs on only 3. Differences of 0.3–1 pp — which separate several models in Table 3 — correspond to 1–4 images and lie inside the noise band of a single split. Specifically, ChiliEdgeNet's +1.07 pp (4-image) gap over the base architecture [5] in Section 4.2 falls in this range: the 95% Wilson intervals for ChiliEdgeNet [97.66, 99.73] and for [5] [96.18, 99.09] overlap substantially, and both models come from a single run each — at two different seeds (123 versus 42, Section 4.1), so there is no run-to-run variance to compare against. The 99.20% figure is a genuinely higher point estimate, but confirming this is not random fluctuation would require multiple seeds (including reproducing [5] across seeds) and/or a direct McNemar test between the two models. The claim that does not depend on this noise — 35% fewer parameters — is exact arithmetic. We use a fixed single split with no k-fold cross-validation, so our position in Table 3 reads as *among the strongest under a shared protocol*, not a statistically established ordering.
+The stress tests in Section 4.3 only synthesize blur and brightness reduction from ChiliEdge-DS images, so they do not fully capture the acquisition domain gap. This work carries out an additional evaluation on the **Chili Plant Leaf Disease and Growth Stage Dataset from Bangladesh**, version 1, released on Mendeley Data under a CC BY 4.0 licence (Nirob et al., 2025). The source images were collected at a garden in Charpolisha, Jamalpur (Bangladesh) between October 2024 and February 2025; the disease-leaf portion comprises 1,856 images across six source labels.
 
-**Run count and statistical power.** The proposed model and all ablations come from a single run (seed 123); the base architecture [5] compared against in Section 4.2 is a separate single run at seed 42. We compensate with per-image paired McNemar tests and Wilson intervals. Honest summary: at the **block level** (Section 4.4.1), the Tiny Transformer-under-blur comparison (*p* = 0.0001) **survives Bonferroni correction** (threshold 0.05/3 ≈ 0.017) — an established effect within this single seed, not merely a trend. At the **technique level** (Section 4.4.2), the opposite holds: **no comparison among the 9 tests survives correction** (threshold 0.05/9 ≈ 0.006; the closest is RMSNorm/low-light at *p* = 0.063), so Section 4.4.2 remains a design-informing observation, not an established effect. Notably, the technique-level result at the current architecture/seed (RMSNorm close to free) reverses our own previous architecture version (with RES_Block, seed 42, where RMSNorm lost to LayerNorm significantly under blur) — concrete evidence that a single seed is not enough to settle each technique's individual value; multiple seeds and a non-saturated dataset are needed to establish it conclusively. The parameter-count claims are unaffected — they are exact.
+Only four labels with a direct correspondence to the ChiliEdgeNet label space are used. Two labels, `Bacterial Spot` (156 images) and `White spot` (195 images), are excluded because the model has no corresponding target class. The source dataset has no anthracnose class, so there is no `anthracnose` ground-truth row. However, the checkpoint still retains all five outputs used during training; any prediction toward `anthracnose` is still counted as incorrect, and this prediction column is kept in the confusion matrix.
 
-**Coverage of the degradation benchmark.** This run evaluates two degradations, blur and brightness reduction. Both model geometric and photometric capture failures, but neither models **sensor-level** degradation (ISO noise, JPEG compression), which stresses the high-frequency content a convolutional stack relies on. Robustness conclusions here are scoped to the blur and low-light axes.
+**Table 10a. Verified support/query split from the four mapped classes.**
 
-**Domain gap.** ChiliEdge-DS is photographed against a white background (Section 3.1), a controlled acquisition unlike a phone camera in a field. Section 4.3 probes **part** of this gap and the model retains 95.98–99.20% across the degraded conditions versus 99.20% clean. But those transforms simulate **acquisition degradation only**, not **scene-level domain shift**: a blurred white-background image is still a white-background image. Two properties of real field imagery remain **unevaluated**: (i) cluttered leaf-and-soil backgrounds instead of a uniform backdrop, and (ii) unconstrained viewpoints. Our 99.20% clean accuracy should therefore **not** be read as an estimate of in-field deployment accuracy. Collecting even a small natural-background test set to quantify the transfer drop is a necessary next step.
+| Source label (Nirob et al., 2025) | ChiliEdgeNet label | Original images | Few-shot support | Clean query | Corrected test folder |
+|---|---|---:|---:|---:|---:|
+| `Healthy Leaf` | `healthy` | 458 | 8 | 450 | 450 |
+| `Curl Virus` | `leaf_curl` | 423 | 9 | 414 | 414 |
+| `Cercospora Leaf Spot` | `leaf_spot` | 180 | 16 | 164 | 164 |
+| `Nutrition Deficiency` | `yellow_leaf` | 444 | 9 | 435 | 435 |
+| **Total** |  | **1,505** | **42** | **1,463** | **1,463** |
 
-**Hardware.** The 19.28 ms/image figure is measured on a server-class Kaggle VM CPU (Intel(R) Xeon(R) @ 2.00 GHz, 4 logical cores), **not** edge hardware. A phone or single-board computer has far fewer cores, a lower clock, and a thermal budget that throttles sustained inference, so on-device latency would be substantially higher. The paper establishes the model is *small and cheap enough* to be a realistic edge candidate (2.7 MB, no GPU required); it does not establish measured on-device performance. Section 4.5 adds a real-time laptop-camera demo as qualitative proof of feasibility (n = 5); it does not substitute for measurement on physical edge hardware.
+**Few-shot setup.** The support set comprises 42 images taken as-is from Nirob et al. (2025): 8 `healthy`, 9 `leaf_curl`, 16 `leaf_spot`, and 9 `yellow_leaf`. The support images were added to ChiliEdge-DS's training set to create a separate adapted checkpoint; ChiliEdge-DS's own in-domain validation and test sets are unchanged. This is supervised domain adaptation with a small support set, not episodic meta-learning. The number of shots differs across classes, so this is not a balanced *N*-way *K*-shot setup.
 
-## 7. Conclusion
+To control for data leakage, the support and query sets were tracked with SHA-256 hashes rather than filenames alone. The query set is defined as the complement of the 42 support images within the 1,505 images across the four classes, and an audit confirmed the hash intersection between the two is zero. The few-shot checkpoint was trained with seed 42.
 
-This paper proposed ChiliEdgeNet, a **671,173-parameter** CNN-Transformer hybrid for chili pepper disease recognition running fully offline on a CPU (2.7 MB, 19.28 ms/image), reaching 99.20% on both baseline and augmented — higher than the base architecture [5] (98.12%) by **+1.07 pp**, while using **35% fewer parameters**. The core contribution is achieving both at once: higher accuracy and a lighter model; the parameter figure alone is exact and needs no test, while the 4-image accuracy gap — measured at two different seeds (123 versus [5]'s 42) — should be read within the test set's noise band (Section 6).
+To support independent reproduction, the clean 1,463-image query set is released as the **Chili Leaf Disease Cross-Dataset Query Set**, Kaggle version 2 (Hải, 2026a), and the 42 support images are released as **Chili Leaf Disease Few-Shot**, Kaggle version 1 (Hải, 2026b). Both packages are derived splits of the original Mendeley Data dataset and do not replace the requirement to cite the source dataset (Nirob et al., 2025).
 
-The methodological contribution is to audit the design component by component instead of reporting the assembled model, using retrain-from-scratch ablation and per-image paired testing on clean images plus two degraded capture conditions. Four findings emerge:
+**Results on the clean query set.** Both checkpoints were evaluated on the same 1,463-image clean query set. The original checkpoint uses seed 42 (SHA-256 verified); the checkpoint after few-shot adaptation also uses seed 42 (SHA-256 verified). Images were resized to 224×224 pixels and normalized with ImageNet statistics. Macro precision, recall, and F1 are averaged only over the four classes with ground truth; predictions toward `anthracnose` still reduce accuracy.
 
-1. **All three LLM techniques are close to free — none loses with statistical significance.** 2D-RoPE matches a learned positional table, GQA matches multi-head attention, and RMSNorm matches LayerNorm on every axis (the largest gap is only *p* = 0.063), together saving **41,856 parameters** at no measurable cost. This reverses our own previous architecture version (with RES_Block, seed 42), where RMSNorm lost to LayerNorm significantly under blur — concrete evidence that the technique-level conclusions here still need confirming across seeds (Section 6).
-2. **The Transformer block contributes robustness under blur, not clean accuracy — and this time reaches statistical significance.** Retraining without it costs 5.90 pp under blur (*p* = 0.0001, surviving Bonferroni correction) and produces identical results (zero images different) on clean data.
-3. **Not every inherited block helps.** The Triplet Attention block from [5] harmed accuracy under blur and low light with statistical significance — a negative result we acted on, removing it from the design rather than reporting around it. A second inherited block, RES_Block, was also dropped in a later architecture simplification, though without a direct ablation quantifying its individual contribution.
-4. **On this dataset, most of the robustness to blur and low light comes from the training recipe, not the architecture.** Augmentation moves low-light accuracy from 86.06% to 99.20% (+13.14 pp, 49 images) and blur accuracy from 91.42% to 95.98% (+4.56 pp, 17 images) — more than the measurable contribution of any architectural component here, though the Transformer block (finding 2) also contributes on that same blur axis.
+**Table 10b. Results before and after few-shot adaptation on the 1,463-image clean query set.**
 
-The backbone cut point remains the most consequential architectural decision: `features[1:14]` preserves a 14x14 grid (196 tokens) instead of letting the stride-32 stage collapse it to 7x7, and yields a four-times finer attention map. Future work: extending the degradation benchmark to sensor-level noise and JPEG compression, a natural-background test set to quantify the domain gap, confirming the technique-level findings (1) and the comparison against the base architecture (Section 4.2) across seeds on a harder non-saturated dataset, and latency/memory measurement on physical edge hardware after quantization.
+| Configuration | Seed | Accuracy | Precision-macro | Recall-macro | F1-macro | Correct images |
+|---|---:|---:|---:|---:|---:|---:|
+| Original checkpoint, no few-shot | 42 | 30.96% | 0.4337 | 0.2843 | 0.1766 | 453/1,463 |
+| Checkpoint after few-shot | 42 | 89.75% | 0.8837 | 0.8683 | 0.8744 | 1,313/1,463 |
+| **Difference** |  | **+58.78 pp** | **+0.4500** | **+0.5840** | **+0.6978** | **+860** |
+
+At the original checkpoint, `leaf_curl` has recall 1.0000 but precision only 0.3013, while `yellow_leaf` has recall zero. After few-shot adaptation, F1 for `healthy`, `leaf_curl`, `leaf_spot`, and `yellow_leaf` reaches 0.9168, 0.9619, 0.7557, and 0.8633 respectively. A per-image prediction comparison shows 443 images correctly predicted by both checkpoints, 140 images incorrectly predicted by both, 870 images turning from incorrect at the original checkpoint to correct after few-shot, and 10 images in the opposite direction. A two-sided exact McNemar test gives $p=1.83\times10^{-242}$. This is a single paired contrast on an out-of-domain dataset and does not belong to the ablation's Holm test family. Predictions for all 1,463 images and the paired statistics are stored in the metadata package accompanying this study.
+
+![Figure S1. Confusion matrix of the original checkpoint on the 1,463-image clean query set.](<../../results/Cross check default/cross_dataset_local_cm.png>)
+
+![Figure S2. Confusion matrix of the checkpoint after few-shot adaptation on the same 1,463-image clean query set.](<../../results/cross check them data/cross_dataset_local_cm.png>)
+
+### 4.6. Preprocessing and Inference Latency Evaluation in a Laptop-Camera Application
+
+ChiliEdgeNet was integrated into a laptop camera application, where the user places a leaf inside a region of interest (ROI) and triggers a prediction on each frame. This experiment evaluates only preprocessing and inference latency as a proof of integration feasibility; it does not use camera frames to estimate real-field accuracy.
+
+The test session comprises **62 predictions**, run at batch size 1 on a **13th Gen Intel Core i7-13650HX** CPU. The measured interval starts from converting the ROI's RGB image to PIL, continuing through resize, normalization, model inference, softmax, and top-1 prediction. The measurement excludes time for reading frames from the camera, cropping the ROI, converting BGR to RGB, rendering the UI, or writing files.
+
+**Table 11. Preprocessing and inference latency of ChiliEdgeNet on a laptop CPU.**
+
+| Metric | Latency (ms) |
+|---|---:|
+| Number of measurements | 62 |
+| Mean | 32.18 |
+| Median | 29.70 |
+| 95th percentile | 46.49 |
+| Minimum | 17.33 |
+| Maximum | 122.76 |
+
+A median of 29.70 ms and a 95th percentile of 46.49 ms show that the preprocessing-and-inference stage can respond quickly on a laptop CPU without a GPU. However, the results come from a single measurement session on a single device and do not include the application's full capture-to-display cost; the test device is also not dedicated edge hardware. This experiment therefore provides only preliminary evidence of ChiliEdgeNet's feasibility for integration into a camera application, not a representative measurement of the full pipeline or of dedicated edge hardware. The labelled data in the demo session is unbalanced and contains many repeated frames of the same subject, so accuracy and a confusion matrix are not reported in this section.
+
+## 5. Limitations
+
+**Statistical resolution of the test set.** With 373 images, one image is worth 0.27 pp, and the proposed model errs on 4 images. The 0.80 pp (3-image) difference from the base architecture (Duhan et al., 2025) falls within the noise band of a single split: ChiliEdgeNet's 95% Wilson interval [97.28, 99.58] overlaps with the [96.18, 99.09] interval of Duhan et al. (2025). Both models are seed-42-matched but each has only been run once. Furthermore, RTR_Lite_MobileNet (Duhan et al., 2025) was chosen as the primary baseline after reviewing the baseline pool's test results, so this comparison is exploratory and does not constitute an independent test evaluation. Establishing a definitive ranking would require selection by validation followed by a single test evaluation, multiple seeds, and/or a direct McNemar test between the two prediction sets. The 35% parameter reduction does not depend on training noise or baseline-selection criteria.
+
+**Run count and statistical power.** The proposed model and all ablations come from a single seed-42 run. At the architectural level, disabling MobileNetV2 residuals reduces accuracy by 2.41 pp on clean images, and the difference remains significant after Holm correction for the two direct cuts ($p_{Holm}=0.0234$). Across the eight stress-test conditions, the Tiny Transformer's advantage reaches significance after Holm correction only at brightness factor 0.2 ($p_{Holm}=0.0105$); the remaining levels reflect a severity-dependent trend rather than a broadly established effect. All three Triplet/`RES_Block` contrasts are non-significant after Holm correction. These conclusions are single-seed observations and need confirmation across multiple runs.
+
+**Scope of the stress test.** The experiment examines four Gaussian blur levels and four brightness-reduction factors synthesized from the same test set. The design does not yet cover sensor noise, JPEG compression, motion blur, or real images captured under genuine low-light conditions; results should not be extrapolated to every capture condition.
+
+**Domain gap and scope of the few-shot evaluation.** The evaluation uses only the four Mendeley Data labels that map directly to `healthy`, `leaf_curl`, `leaf_spot`, and `yellow_leaf`; it does not evaluate `anthracnose` and excludes two source labels the model does not support. On the clean 1,463-image query set, with zero hash intersection with the support set, accuracy reaches 30.96% at the original checkpoint and 89.75% after few-shot adaptation. Both checkpoints were trained with seed 42, the same architecture, and the same base hyperparameters; training records should still be strengthened with the executed logs or configuration. Since only one out-of-domain dataset and one fixed support set were used, this improvement does not demonstrate that the few-shot protocol generalizes to other data sources or support-selection methods.
+
+**Hardware.** The 20.24 ms/image figure is measured on a server-class Kaggle virtual-machine CPU, not edge hardware. INT8 and FP16 in the current run reduce storage size but have not yet produced a latency speed-up; benchmarking on a phone or embedded computer with a real deployment backend is still needed.
+
+## 6. Conclusion
+
+At seed 42, ChiliEdgeNet reaches **98.93% accuracy**, macro-F1 **0.9897**, using **671,173 parameters**, with CPU inference at **20.24 ms/image**. Compared with RTR_Lite_MobileNet (Duhan et al., 2025) at the same seed, the model is **0.80 pp (3 images)** higher and uses about **35% fewer parameters**; since each architecture was run only once and the confidence intervals overlap, the accuracy advantage should be read as a trend rather than an established statistical ranking.
+
+The ablation results show:
+
+1. Disabling MobileNetV2's residual connections reduces accuracy by 2.41 pp on clean images; the difference remains significant after Holm correction for the two direct cuts.
+2. The Tiny Transformer shows no advantage on clean images or mild degradation, but the gap grows under severe degradation. At brightness factor 0.2, the full model is 3.75 pp higher, and the difference is significant after Holm correction.
+3. Triplet Attention and `RES_Block` do not provide a stable benefit. The current model, which omits both, matches or exceeds the add-back configurations, but the contrasts are not significant after Holm correction.
+4. 2D-RoPE, GQA, and RMSNorm together avoid 41,856 parameters relative to using all three standard alternatives simultaneously; single-seed results do not show an accuracy advantage on clean images.
+5. On the clean 1,463-image cross-dataset query set, adaptation with 42 support images raises accuracy from 30.96% to 89.75% (+58.78 pp); a paired McNemar test records 870 improvements and 10 regressions ($p=1.83\times10^{-242}$). This result applies only to the four mapped classes.
+
+Future directions include repeating the experiments across multiple seeds, checking for duplicate/near-duplicate images across splits, extending the stress test to real acquisition degradations, and measuring latency and memory on physical edge hardware with a real quantization backend.
 
 ## References
 
-[1] R. Maurya, S. Mahapatra, and L. Rajput, "A lightweight meta-ensemble approach for plant disease detection suitable for IoT-based environments," *IEEE Access*, vol. 12, pp. 28096-28108, 2024. DOI: 10.1109/ACCESS.2024.3367443.
+Abnar, S., Zuidema, W., 2020. Quantifying attention flow in transformers. In: Proceedings of the Annual Meeting of the Association for Computational Linguistics (ACL), pp. 4190–4197. https://doi.org/10.18653/v1/2020.acl-main.385.
 
-[2] M. M. Rahman et al., "MaizeFormerX: A lightweight vision transformer with cross-scale attention for explainable maize leaf disease diagnosis," *Scientific Reports*, 2026. DOI: 10.1038/s41598-026-44550-0.
+Ainslie, J., Lee-Thorp, J., de Jong, M., Zemlyanskiy, Y., Lebron, F., Sanghai, S., 2023. GQA: Training generalized multi-query transformer models from multi-head checkpoints. In: Proceedings of the Conference on Empirical Methods in Natural Language Processing (EMNLP), pp. 4895–4901. https://doi.org/10.18653/v1/2023.emnlp-main.298.
 
-[3] P. Gole, P. Bedi, S. Marwaha, M. A. Haque, and C. K. Deb, "TrIncNet: A lightweight vision transformer network for identification of plant diseases," *Frontiers in Plant Science*, vol. 14, art. no. 1221557, 2023. DOI: 10.3389/fpls.2023.1221557.
+Ali, M., Salma, M., El Haji, M., Jamal, B., 2025. Plant disease detection using vision transformers. International Journal of Electrical and Computer Engineering 15 (2), 2334–2344. https://doi.org/10.11591/ijece.v15i2.pp2334-2344.
 
-[4] D. S. Joseph, P. M. Pawar, and K. Chakradeo, "Real-time plant disease dataset development and detection of plant disease using deep learning," *IEEE Access*, vol. 12, pp. 16310-16333, 2024. DOI: 10.1109/ACCESS.2024.3358333.
+Bhagat, S., Kokare, M., Haswani, V., Hambarde, P., Taori, T., Ghante, P.H., Patil, D.K., 2024. Advancing real-time plant disease detection: A lightweight deep learning approach and novel dataset for pigeon pea crop. Smart Agricultural Technology 7, 100408. https://doi.org/10.1016/j.atech.2024.100408.
 
-[5] S. Duhan, P. Gulia, N. S. Gill, and E. Narwal, "RTR_Lite_MobileNetV2: A lightweight and efficient model for plant disease detection and classification," *Current Plant Biology*, vol. 42, art. no. 100459, 2025. DOI: 10.1016/j.cpb.2025.100459.
+Duhan, S., Gulia, P., Gill, N.S., Narwal, E., 2025. RTR_Lite_MobileNetV2: A lightweight and efficient model for plant disease detection and classification. Current Plant Biology 42, 100459. https://doi.org/10.1016/j.cpb.2025.100459.
 
-[6] G. Li, Y. Wang, Q. Zhao, P. Yuan, and B. Chang, "PMVT: A lightweight vision transformer for plant disease identification on mobile devices," *Frontiers in Plant Science*, vol. 14, art. no. 1256773, 2023. DOI: 10.3389/fpls.2023.1256773.
+Erion, G., Janizek, J.D., Sturmfels, P., Lundberg, S.M., Lee, S.-I., 2021. Improving performance of deep learning models with axiomatic attribution priors and expected gradients. Nature Machine Intelligence 3 (7), 620–631. https://doi.org/10.1038/s42256-021-00343-w.
 
-[7] S. Bhagat, M. Kokare, V. Haswani, P. Hambarde, T. Taori, P. H. Ghante, and D. K. Patil, "Advancing real-time plant disease detection: A lightweight deep learning approach and novel dataset for pigeon pea crop," *Smart Agricultural Technology*, vol. 7, art. no. 100408, 2024. DOI: 10.1016/j.atech.2024.100408.
+Gole, P., Bedi, P., Marwaha, S., Haque, M.A., Deb, C.K., 2023. TrIncNet: A lightweight vision transformer network for identification of plant diseases. Frontiers in Plant Science 14, 1221557. https://doi.org/10.3389/fpls.2023.1221557.
 
-[8] B. Wang, C. Zhang, Y. Li, C. Cao, D. Huang, and Y. Gong, "An ultra-lightweight efficient network for image-based plant disease and pest infection detection," *Precision Agriculture*, vol. 24, pp. 1836-1861, 2023. DOI: 10.1007/s11119-023-10020-0.
+Google DeepMind, 2026. Gemini 3.1 Flash-Lite: Model Card. https://deepmind.google/models/model-cards/gemini-3-1-flash-lite/ (accessed 8 July 2026).
 
-[9] B. Yang et al., "A novel plant type, leaf disease and severity identification framework using CNN and transformer with multi-label method," *Scientific Reports*, vol. 14, art. no. 11664, 2024. DOI: 10.1038/s41598-024-62452-x.
+[dataset] Hải, T.M., 2026a. Chili Leaf Disease Cross-Dataset Query Set, Kaggle dataset version 2. Kaggle. https://www.kaggle.com/datasets/tminhhi/chili-leaf-disease-cross-dataset-query-set/version/2 (accessed 4 August 2026). Derived from Nirob et al. (2025); license: CC BY 4.0.
 
-[10] S. Hemalatha and J. J. B. Jayachandran, "A multitask learning-based vision transformer for plant disease localization and classification," *International Journal of Computational Intelligence Systems*, vol. 17, art. no. 188, 2024. DOI: 10.1007/s44196-024-00597-3.
+[dataset] Hải, T.M., 2026b. Chili Leaf Disease Few-Shot, Kaggle dataset version 1. Kaggle. https://www.kaggle.com/datasets/tminhhi/chili-leaf-disease-few-shot/version/1 (accessed 4 August 2026). Derived from Nirob et al. (2025); license: CC BY 4.0.
 
-[11] U. Mishra, A. Pandey, Logeswari G, and Tamilarasi K, "Deep learning-based disease detection in potato and mango leaves: A comparative study of CNN, AlexNet, ResNet, and EfficientNet," *Scientific Reports*, 2025. DOI: 10.1038/s41598-025-32607-5.
+[dataset] Hải, T.M., 2026c. ChiliEdge-DS: Chili Pepper Leaf Disease Dataset, version 1.0 (Kaggle dataset version 2). Kaggle. https://www.kaggle.com/datasets/tminhhi/ot-21-06/versions/2 (accessed 4 August 2026); license: not publicly licensed (all rights reserved by the author).
 
-[12] J. Rahaman, P. Paul, A. Chowdhury, and M. Quamruzzaman, "A customized MobileNetV3Large-based deep learning framework for plant disease detection," *Discover Artificial Intelligence*, vol. 6, art. no. 110, 2026. DOI: 10.1007/s44163-025-00733-8.
+Hemalatha, S., Jayachandran, J.J.B., 2024. A multitask learning-based vision transformer for plant disease localization and classification. International Journal of Computational Intelligence Systems 17 (1), 188. https://doi.org/10.1007/s44196-024-00597-3.
 
-[13] Karthik, R. Menaka, M. S. Kathiresan, and M. Anirudh, "GrapeLeafNet: A dual-track feature fusion network with Inception-ResNet and Shuffle-Transformer for accurate grape leaf disease identification," *IEEE Access*, vol. 12, pp. 19612-19624, 2024. DOI: 10.1109/ACCESS.2024.3361044.
+Heo, B., Park, S., Han, D., Yun, S., 2025. Rotary position embedding for Vision Transformer. In: Computer Vision – ECCV 2024, Lecture Notes in Computer Science, vol. 15068, pp. 289–305. https://doi.org/10.1007/978-3-031-72684-2_17.
 
-[14] R. Sujatha, S. Krishnan, J. M. Chatterjee, and A. H. Gandomi, "Advancing plant leaf disease detection integrating machine learning and deep learning," *Scientific Reports*, vol. 15, art. no. 11552, 2025. DOI: 10.1038/s41598-024-72197-2.
+Joseph, D.S., Pawar, P.M., Chakradeo, K., 2024. Real-time plant disease dataset development and detection of plant disease using deep learning. IEEE Access 12, 16310–16333. https://doi.org/10.1109/ACCESS.2024.3358333.
 
-[15] M. Ali, S. Mouatassim, M. El Haji, and J. Benhra, "Plant disease detection using vision transformers," *International Journal of Electrical and Computer Engineering (IJECE)*, vol. 15, no. 2, pp. 2334-2344, 2025. DOI: 10.11591/ijece.v15i2.pp2334-2344.
+Karthik, R., Menaka, R., Ompirakash, S., Bala Murugan, P., Meenakashi, M., Lingaswamy, S., Won, D., 2024. GrapeLeafNet: A dual-track feature fusion network with Inception-ResNet and Shuffle-Transformer for accurate grape leaf disease identification. IEEE Access 12, 19612–19624. https://doi.org/10.1109/ACCESS.2024.3361044.
 
-[16] M. Sandler, A. Howard, M. Zhu, A. Zhmoginov, and L.-C. Chen, "MobileNetV2: Inverted residuals and linear bottlenecks," in *Proc. IEEE Conf. Comput. Vis. Pattern Recognit. (CVPR)*, 2018, pp. 4510-4520. DOI: 10.1109/CVPR.2018.00474.
+Li, G., Wang, Y., Zhao, Q., Yuan, P., Chang, B., 2023. PMVT: A lightweight vision transformer for plant disease identification on mobile devices. Frontiers in Plant Science 14, 1256773. https://doi.org/10.3389/fpls.2023.1256773.
 
-[17] D. Misra, T. Nalamada, A. U. Arasanipalai, and Q. Hou, "Rotate to attend: Convolutional triplet attention module," in *Proc. IEEE Winter Conf. Appl. Comput. Vis. (WACV)*, 2021, pp. 3139-3148. DOI: 10.1109/WACV48630.2021.00318.
+Maurya, R., Mahapatra, S., Rajput, L., 2024. A lightweight meta-ensemble approach for plant disease detection suitable for IoT-based environments. IEEE Access 12, 28096–28108. https://doi.org/10.1109/ACCESS.2024.3367443.
 
-[18] J. Su, Y. Lu, S. Pan, A. Murtadha, B. Wen, and Y. Liu, "RoFormer: Enhanced transformer with rotary position embedding," *Neurocomputing*, vol. 568, art. no. 127063, 2024. DOI: 10.1016/j.neucom.2023.127063.
+Mishra, U., Pandey, A., Logeswari, G., Tamilarasi, K., 2026. Deep learning-based disease detection in potato and mango leaves: A comparative study of CNN, AlexNet, ResNet, and EfficientNet. Scientific Reports 16, 2788. https://doi.org/10.1038/s41598-025-32607-5.
 
-[19] J. Ainslie, J. Lee-Thorp, M. de Jong, Y. Zemlyanskiy, F. Lebron, and S. Sanghai, "GQA: Training generalized multi-query transformer models from multi-head checkpoints," in *Proc. Conf. Empirical Methods Natural Lang. Process. (EMNLP)*, 2023, pp. 4895-4901. DOI: 10.18653/v1/2023.emnlp-main.298.
+Misra, D., Nalamada, T., Arasanipalai, A.U., Hou, Q., 2021. Rotate to attend: Convolutional triplet attention module. In: Proceedings of the IEEE Winter Conference on Applications of Computer Vision (WACV), pp. 3139–3148. https://doi.org/10.1109/WACV48630.2021.00318.
 
-[20] B. Zhang and R. Sennrich, "Root mean square layer normalization," in *Proc. Adv. Neural Inf. Process. Syst. (NeurIPS)*, 2019. [Online]. Available: https://arxiv.org/abs/1910.07467.
+[dataset] Nirob, M.A.S., Siam, A.K.M.F.K., Bishshash, P., Assaduzzaman, M., 2025. Chili Plant Leaf Disease and Growth Stage Dataset from Bangladesh, version 1. Mendeley Data. https://doi.org/10.17632/w9mr3vf56s.1. Published 19 February 2025; license: CC BY 4.0.
 
-[21] R. R. Selvaraju, M. Cogswell, A. Das, R. Vedantam, D. Parikh, and D. Batra, "Grad-CAM: Visual explanations from deep networks via gradient-based localization," in *Proc. IEEE Int. Conf. Comput. Vis. (ICCV)*, 2017, pp. 618-626. DOI: 10.1109/ICCV.2017.74.
+Pan, S.J., Yang, Q., 2010. A survey on transfer learning. IEEE Transactions on Knowledge and Data Engineering 22 (10), 1345–1359. https://doi.org/10.1109/TKDE.2009.191.
 
-[22] S. Abnar and W. Zuidema, "Quantifying attention flow in transformers," in *Proc. Annu. Meeting Assoc. Comput. Linguistics (ACL)*, 2020, pp. 4190-4197. DOI: 10.18653/v1/2020.acl-main.385.
+Rahaman, J., Paul, P., Chowdhury, A., Quamruzzaman, M., 2026. A customized MobileNetV3Large-based deep learning framework for plant disease detection. Discover Artificial Intelligence 6, 110. https://doi.org/10.1007/s44163-025-00733-8.
 
-[23] [dataset] T. M. Hải, "ChiliEdge-DS: Chili Pepper Leaf Disease Dataset," version 1.0 (Kaggle dataset version 2), Kaggle, 2026. [Online]. Available: https://www.kaggle.com/datasets/tminhhi/ot-21-06/versions/2.
+Rahman, M.M., Gony, M.N., Ullah, M.S., Shuvra, S.M.K., Haque, R., Ahmed, M.R., et al., 2026. MaizeFormerX: A lightweight vision transformer with cross-scale attention for explainable maize leaf disease diagnosis. Scientific Reports 16, 15160. https://doi.org/10.1038/s41598-026-44550-0.
 
-[24] M. D. Zeiler and R. Fergus, "Visualizing and understanding convolutional networks," in *Proc. Eur. Conf. Comput. Vis. (ECCV)*, 2014, pp. 818-833. DOI: 10.1007/978-3-319-10590-1_53.
+Sandler, M., Howard, A., Zhu, M., Zhmoginov, A., Chen, L.-C., 2018. MobileNetV2: Inverted residuals and linear bottlenecks. In: Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition (CVPR), pp. 4510–4520. https://doi.org/10.1109/CVPR.2018.00474.
+
+Snell, J., Swersky, K., Zemel, R.S., 2017. Prototypical networks for few-shot learning. In: Advances in Neural Information Processing Systems 30, pp. 4077–4087.
+
+Su, J., Ahmed, M., Lu, Y., Pan, S., Wen, B., Liu, Y., 2024. RoFormer: Enhanced transformer with rotary position embedding. Neurocomputing 568, 127063. https://doi.org/10.1016/j.neucom.2023.127063.
+
+Sujatha, R., Krishnan, S., Chatterjee, J.M., Gandomi, A.H., 2025. Advancing plant leaf disease detection integrating machine learning and deep learning. Scientific Reports 15, 11552. https://doi.org/10.1038/s41598-024-72197-2.
+
+Vaswani, A., Shazeer, N., Parmar, N., Uszkoreit, J., Jones, L., Gomez, A.N., et al., 2017. Attention is all you need. In: Advances in Neural Information Processing Systems 30, pp. 5998–6008.
+
+Wang, B., Zhang, C., Li, Y., Cao, C., Huang, D., Gong, Y., 2023. An ultra-lightweight efficient network for image-based plant disease and pest infection detection. Precision Agriculture 24 (5), 1836–1861. https://doi.org/10.1007/s11119-023-10020-0.
+
+Yang, B., Li, M., Li, F., Wang, Y., Liang, Q., Zhao, R., et al., 2024. A novel plant type, leaf disease and severity identification framework using CNN and transformer with multi-label method. Scientific Reports 14, 11664. https://doi.org/10.1038/s41598-024-62452-x.
+
+Zeiler, M.D., Fergus, R., 2014. Visualizing and understanding convolutional networks. In: Proceedings of the European Conference on Computer Vision (ECCV), pp. 818–833. https://doi.org/10.1007/978-3-319-10590-1_53.
+
+Zhang, B., Sennrich, R., 2019. Root mean square layer normalization. In: Advances in Neural Information Processing Systems 32 (NeurIPS 2019), pp. 12360–12371.
