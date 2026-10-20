@@ -1,0 +1,1 @@
+Train như thế nào?  Chia bộ dataset ra sao? Dataset thu thập có tin cậy không?  Độ trễ suy luận của web? AI trên web response có đúng không?

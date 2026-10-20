@@ -40,21 +40,15 @@ Misra, D., Nalamada, T., Arasanipalai, A.U., Hou, Q., 2021. Rotate to attend: Co
 
 [dataset] Nirob, M.A.S., Siam, A.K.M.F.K., Bishshash, P., Assaduzzaman, M., 2025. Chili Plant Leaf Disease and Growth Stage Dataset from Bangladesh, version 1. Mendeley Data. https://doi.org/10.17632/w9mr3vf56s.1. Published 19 February 2025; license: CC BY 4.0.
 
-Pan, S.J., Yang, Q., 2010. A survey on transfer learning. IEEE Transactions on Knowledge and Data Engineering 22 (10), 1345–1359. https://doi.org/10.1109/TKDE.2009.191.
-
 Rahaman, J., Paul, P., Chowdhury, A., Quamruzzaman, M., 2026. A customized MobileNetV3Large-based deep learning framework for plant disease detection. Discover Artificial Intelligence 6, 110. https://doi.org/10.1007/s44163-025-00733-8.
 
 Rahman, M.M., Gony, M.N., Ullah, M.S., Shuvra, S.M.K., Haque, R., Ahmed, M.R., et al., 2026. MaizeFormerX: A lightweight vision transformer with cross-scale attention for explainable maize leaf disease diagnosis. Scientific Reports 16, 15160. https://doi.org/10.1038/s41598-026-44550-0.
 
 Sandler, M., Howard, A., Zhu, M., Zhmoginov, A., Chen, L.-C., 2018. MobileNetV2: Inverted residuals and linear bottlenecks. In: Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition (CVPR), pp. 4510–4520. https://doi.org/10.1109/CVPR.2018.00474.
 
-Snell, J., Swersky, K., Zemel, R.S., 2017. Prototypical networks for few-shot learning. In: Advances in Neural Information Processing Systems 30, pp. 4077–4087.
-
 Su, J., Ahmed, M., Lu, Y., Pan, S., Wen, B., Liu, Y., 2024. RoFormer: Enhanced transformer with rotary position embedding. Neurocomputing 568, 127063. https://doi.org/10.1016/j.neucom.2023.127063.
 
 Sujatha, R., Krishnan, S., Chatterjee, J.M., Gandomi, A.H., 2025. Advancing plant leaf disease detection integrating machine learning and deep learning. Scientific Reports 15, 11552. https://doi.org/10.1038/s41598-024-72197-2.
-
-Vaswani, A., Shazeer, N., Parmar, N., Uszkoreit, J., Jones, L., Gomez, A.N., et al., 2017. Attention is all you need. In: Advances in Neural Information Processing Systems 30, pp. 5998–6008.
 
 Wang, B., Zhang, C., Li, Y., Cao, C., Huang, D., Gong, Y., 2023. An ultra-lightweight efficient network for image-based plant disease and pest infection detection. Precision Agriculture 24 (5), 1836–1861. https://doi.org/10.1007/s11119-023-10020-0.
 

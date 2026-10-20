@@ -1,6 +1,6 @@
 ### 4.2. Comparison with State-of-the-Art Models
 
-At seed 42, ChiliEdgeNet reaches **97.86%** in the baseline scenario and **98.93%** in the augmented scenario. The corresponding macro-F1 values are 0.9790 and 0.9897.
+At seed 42, ChiliEdgeNet reaches 97.86% in the baseline scenario and 98.93% in the augmented scenario. The corresponding macro-F1 values are 0.9790 and 0.9897.
 
 A total of 17 baselines from 15 recent studies were reproduced and evaluated under the same framework, presented in full in Table 3. Because the baselines were each run once and not individually tuned for ChiliEdge-DS, this table reflects results under shared data, split, and metrics, not an absolute ranking between architectures.
 
@@ -8,13 +8,11 @@ RTR_Lite_MobileNet (Duhan et al., 2025) was chosen as the primary baseline becau
 
 For the study by Sujatha et al. (2025), ten combinations of two backbones (VGG19 and InceptionV3) with five classifiers (SVM, kNN, Random Forest, AdaBoost, and Decision Tree) were evaluated on the same data split. The InceptionV3 + SVM configuration, which had the highest observed test accuracy, was chosen as the representative in Table 3. Because this selection used test results, it is likewise treated as exploratory analysis on the current split and is not used to claim statistical superiority or establish an absolute ranking between architectures.
 
-#### 4.2.1. Comparison with the Base Architecture
+**Comparison with the base architecture.** In the seed-42 run, ChiliEdgeNet reaches 98.93% augmented accuracy, higher than RTR_Lite_MobileNet (Duhan et al., 2025) at 98.12%, a difference of 0.80 percentage points, or 3 images, on the 373-image test set.
 
-In the seed-42 run, ChiliEdgeNet reaches **98.93% augmented accuracy**, higher than RTR_Lite_MobileNet (Duhan et al., 2025) at **98.12%**, a difference of **0.80 percentage points, or 3 images**, on the 373-image test set.
+ChiliEdgeNet uses 671,173 parameters, while RTR_Lite_MobileNet uses 1,032,568 parameters, a reduction of about 35%. Both models use seed 42 and the same procedure, but each has been run only once; the 95% Wilson confidence intervals overlap, so the accuracy difference should be interpreted cautiously.
 
-ChiliEdgeNet uses **671,173 parameters**, while RTR_Lite_MobileNet uses **1,032,568 parameters**, a reduction of about **35%**. Both models use seed 42 and the same procedure, but each has been run only once; the 95% Wilson confidence intervals overlap, so the accuracy difference should be interpreted cautiously.
-
-**Table 3. Two-scenario accuracy, macro-F1, and parameter count on the chili dataset.** *(Each model is a single seed-42 run under the same evaluation framework; differences below about 1 pp correspond to only 1–4 images out of 373.)*
+**Table 3.** Two-scenario accuracy, macro-F1, and parameter count on the chili dataset. *(Each model is a single seed-42 run under the same evaluation framework; differences below about 1 pp correspond to only 1–4 images out of 373.)*
 
 | Model | Acc Baseline (%) | Acc Augmented (%) | F1-macro (Aug) | Parameters |
 |---|---|---|---|---|
@@ -37,13 +35,11 @@ ChiliEdgeNet uses **671,173 parameters**, while RTR_Lite_MobileNet uses **1,032,
 | PDLC-ViT (classification-only; Hemalatha and Jayachandran, 2024) | 74.26 | 70.78 | 0.7054 | 17,547,269 |
 | LDI-NET (Yang et al., 2024) | 70.78 | 68.63 | 0.6839 | 8,798,597 |
 
-#### 4.2.2. Error Analysis
+**Error analysis.** In the augmented scenario, ChiliEdgeNet mispredicts the following images:
 
-In the augmented scenario, ChiliEdgeNet mispredicts the following images:
+- one *leaf_spot* image predicted as *healthy*;
+- three *yellow_leaf* images predicted as *leaf_curl*.
 
-- one `leaf_spot` image predicted as `healthy`;
-- three `yellow_leaf` images predicted as `leaf_curl`.
-
-Accuracy reaches 98.93% with a 95% Wilson confidence interval of **[97.28%, 99.58%]**. The remaining errors cluster at the boundary between yellowing and curling symptoms.
+Accuracy reaches 98.93% with a 95% Wilson confidence interval of [97.28%, 99.58%]. The remaining errors cluster at the boundary between yellowing and curling symptoms.
 
 ![Figure 2. Confusion matrix of ChiliEdgeNet on the test set (augmented scenario).](../../results/notebook_c1/c14_cm_s2.png)

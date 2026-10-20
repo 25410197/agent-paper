@@ -1,0 +1,58 @@
+\documentclass[10pt]{article}
+\usepackage[margin=2cm,columnsep=0.7cm]{geometry}
+
+\usepackage{fontspec}
+\setmainfont{TeX Gyre Termes}
+
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{caption}
+\usepackage{amsmath}
+\usepackage[hyphens]{url}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true, linkcolor=blue, citecolor=blue, urlcolor=blue, breaklinks=true}
+\setlength{\emergencystretch}{2em}
+
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\_}{\textunderscore\allowbreak}
+
+\usepackage{float}
+\usepackage{dblfloatfix}
+\usepackage{placeins}
+\renewcommand{\topfraction}{0.95}
+\renewcommand{\bottomfraction}{0.9}
+\renewcommand{\textfraction}{0.05}
+\renewcommand{\dbltopfraction}{0.95}
+\renewcommand{\dblfloatpagefraction}{0.8}
+\setcounter{topnumber}{4}
+\setcounter{bottomnumber}{4}
+\setcounter{totalnumber}{8}
+\setcounter{dbltopnumber}{4}
+
+\title{\LARGE ChiliEdgeNet: A Lightweight CNN-Transformer Hybrid Toward On-Device Chili Pepper Disease Recognition}
+\author{
+  \large Minh Hai To\\[2pt]
+  \normalsize University of Information Technology, Vietnam National University Ho Chi Minh City (VNUHCM-UIT)\\
+  \normalsize Corresponding author: tominhhai0801@gmail.com
+}
+\date{}
+\twocolumn
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+\noindent Plant-disease diagnosis aimed at resource-constrained devices needs a model that is both accurate and lightweight. This work proposes ChiliEdgeNet, a CNN-Transformer hybrid architecture built by truncating MobileNetV2 and integrating a Tiny Transformer block. We also introduce ChiliEdge-DS, a publicly released dataset of 2,461 chili pepper leaf and fruit images across five classes. ChiliEdgeNet reaches 98.93\% accuracy with 671,173 parameters, about 35\% fewer than the base architecture. The model is 2.7 MB and has an inference latency of 20.24 ms/image on a server-class CPU. In a synthetic brightness-reduction stress test at factor 0.2, the full model outperforms the variant without the Transformer by 3.75 percentage points. On a clean cross-dataset query set of 1,463 images across four classes shared with Mendeley Data, accuracy rises from 30.96\% at the original checkpoint to 89.75\% after adapting with 42 support images; both checkpoints use seed 42. These results position ChiliEdgeNet as a candidate for offline inference on resource-constrained hardware, but direct evaluation on edge hardware and domain-transfer confirmation on more independent datasets remain necessary.
+
+\noindent\textbf{Keywords:} chili pepper disease classification, lightweight deep learning, CNN--Transformer, edge AI, few-shot domain adaptation, explainable AI
+\end{abstract}
+
+\input{body.tex}
+
+\section*{References}
+\small
+\input{refs.tex}
+
+\end{document}

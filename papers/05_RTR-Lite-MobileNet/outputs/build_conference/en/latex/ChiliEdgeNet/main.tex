@@ -1,0 +1,88 @@
+\documentclass[times,review,10pt]{elsarticle}
+%% Compiled with pdfLaTeX using the journal's exact required class options
+%% (times, review, 10pt). The manuscript text is plain ASCII (the one
+%% Vietnamese place name with diacritics, "Cu Chi", was written without
+%% diacritics for this reason), so no extra Unicode/font packages are needed.
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{caption}
+\usepackage{amsmath}
+\usepackage[hyphens]{url}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true, linkcolor=blue, citecolor=blue, urlcolor=blue, breaklinks=true}
+\setlength{\emergencystretch}{2em}
+
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\_}{\textunderscore\allowbreak}
+
+\usepackage{float}
+\usepackage{placeins}
+\renewcommand{\topfraction}{0.95}
+\renewcommand{\bottomfraction}{0.9}
+\renewcommand{\textfraction}{0.05}
+\setcounter{topnumber}{4}
+\setcounter{bottomnumber}{4}
+\setcounter{totalnumber}{8}
+
+\journal{Pattern Recognition}
+
+\begin{document}
+
+\begin{frontmatter}
+
+\title{ChiliEdgeNet: A Lightweight CNN-Transformer Hybrid Toward On-Device Chili Pepper Disease Recognition}
+
+\author[a,b]{Minh Hai To}
+\author[a,b,c]{Tien Do}
+\author[c]{Bao The Phung\corref{cor1}}
+\cortext[cor1]{Corresponding author.}
+\ead{baopt@huit.edu.vn}
+
+\affiliation[a]{organization={Faculty of Information Science and Engineering, University of Information Technology},
+            city={Ho Chi Minh City},
+            postcode={700000},
+            country={Vietnam}}
+\affiliation[b]{organization={Vietnam National University Ho Chi Minh City},
+            city={Ho Chi Minh City},
+            postcode={700000},
+            country={Vietnam}}
+\affiliation[c]{organization={Ho Chi Minh City University of Industry and Trade},
+            city={Ho Chi Minh City},
+            postcode={700000},
+            country={Vietnam}}
+
+\begin{abstract}
+Plant-disease diagnosis for resource-constrained devices requires models that balance accuracy, efficiency, and robustness. This work proposes ChiliEdgeNet, a lightweight CNN-Transformer hybrid built by truncating MobileNetV2 and integrating a Tiny Transformer block. We also introduce ChiliEdge-DS, a public dataset containing 2,461 chili pepper leaf and fruit images across five classes. ChiliEdgeNet achieves 98.93\% accuracy with 671,173 parameters, approximately 35\% fewer than the base architecture. The model occupies 2.7 MB and reaches 20.24 ms/image inference latency on a server-class CPU. Under synthetic brightness reduction at factor 0.2, the full model outperforms the no-Transformer variant by 3.75 percentage points. On an external 1,463-image Mendeley query set spanning four classes, accuracy improves from 30.96\% to 89.75\% after adaptation using only 42 support images. These results demonstrate strong potential for offline deployment, while direct edge-hardware testing and broader cross-domain validation remain necessary. Further evaluation is needed before suitability for resource-constrained agricultural deployment can be confirmed.
+\end{abstract}
+
+\begin{keyword}
+chili pepper disease classification \sep lightweight deep learning \sep CNN--Transformer \sep edge AI \sep few-shot domain adaptation \sep explainable AI
+\end{keyword}
+
+\end{frontmatter}
+
+\input{body.tex}
+
+\section*{CRediT authorship contribution statement}
+\textbf{Minh Hai To:} Conceptualization, Methodology, Software, Data curation, Formal analysis, Investigation, Visualization, Writing -- original draft.
+\textbf{Tien Do:} Validation, Writing -- review \& editing, Supervision.
+\textbf{Bao The Phung:} Supervision, Project administration, Writing -- review \& editing.
+
+%% TODO (authors): Tien Do and Bao The Phung are supervising advisors, so
+%% their roles are limited to supervision/validation/review rather than
+%% hands-on methodology or software work. Please do a final check that this
+%% matches reality before resubmission.
+
+\section*{Declaration of competing interest}
+The authors declare that they have no known competing financial interests or personal relationships that could have appeared to influence the work reported in this paper.
+
+\section*{Acknowledgements}
+This research received no specific grant from any funding agency in the public, commercial, or not-for-profit sectors. No individuals other than the listed authors provided assistance with language, writing, or proofreading of this manuscript.
+
+\input{refs.tex}
+
+\end{document}

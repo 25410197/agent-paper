@@ -138,6 +138,12 @@ for lname in ("List Bullet", "List Number"):
     st = doc.styles[lname]
     _force_style_font(st)
     st.font.size = Pt(11)
+    # Align the bullet/number marker with the 0.25in first-line indent used
+    # by Normal-style paragraphs (see below), so list items don't visually
+    # stick out to the left of the paragraph they follow. Wrapped lines
+    # hang at 0.5in, under the item text rather than the marker.
+    st.paragraph_format.left_indent = Inches(0.5)
+    st.paragraph_format.first_line_indent = Inches(-0.25)
 
 
 # --------------------------------------------------------------------------
@@ -365,10 +371,11 @@ def set_cell_borders(cell, top=None, bottom=None):
 
 
 IMG = re.compile(r"^!\[(.*?)\]\((.*?)\)(\{.*\})?\s*$")
-TABLE_CAP = re.compile(r"^\*\*Table\s+\d+\.\s*(.*?)\*\*\s*(.*)$")
+TABLE_CAP = re.compile(r"^\*\*Table\s+(\d+)([a-zA-Z]?)\.\s*(.*?)\*\*\s*(.*)$")
 FIG_CAP_PREFIX = re.compile(r"^Figure\s+\S+\.\s*(.*)$")
 
 _table_seq = 0
+_last_table_base = None
 _fig_seq = 0
 _eq_seq = 0
 
@@ -473,6 +480,27 @@ while i < n:
         i += 1
         continue
 
+    # fenced code block, ```lang ... ``` (e.g. the verbatim LLM prompt in
+    # Section 4.4.2). Previously fell through to the generic "normal
+    # paragraph" handler, which doesn't recognize the fence markers and so
+    # merged everything -- fences included -- into one run-on paragraph.
+    if s.startswith("```"):
+        i += 1
+        code_lines = []
+        while i < n and lines[i].strip() != "```":
+            code_lines.append(lines[i].rstrip("\n"))
+            i += 1
+        i += 1  # skip closing fence
+        for cl in code_lines:
+            p = doc.add_paragraph()
+            p.paragraph_format.left_indent = Inches(0.3)
+            p.paragraph_format.space_after = Pt(0)
+            r = p.add_run(cl if cl.strip() else " ")
+            r.font.name = "Consolas"
+            r.font.size = Pt(9.5)
+        doc.add_paragraph()
+        continue
+
     # block math, "$$...$$" single line
     if s.startswith("$$") and s.endswith("$$") and len(s) > 4:
         _eq_seq += 1
@@ -522,11 +550,24 @@ while i < n:
     # table caption
     mtc = TABLE_CAP.match(s)
     if mtc:
-        desc, trailing = mtc.group(1), mtc.group(2)
-        _table_seq += 1
+        num_str, suffix, desc, trailing = mtc.groups()
+        # "Table 10a." / "Table 10b." share one SEQ number (a sub-table pair).
+        # Word's SEQ field auto-increments on every occurrence regardless of
+        # the cached text passed in, so a repeated pair must use the "\c"
+        # (repeat-last-value) switch instead of just reusing the Python
+        # counter -- otherwise 10a/10b silently consume two numbers and
+        # every following table shifts up by one (e.g. "Table 11." would
+        # render as "Table 12.").
+        reuse = bool(suffix and num_str == _last_table_base)
+        if not reuse:
+            _table_seq += 1
+            _last_table_base = num_str
         cap = doc.add_paragraph()
         r = cap.add_run("Table "); r.bold = True; r.font.name = "Times New Roman"; r.font.size = Pt(10.5)
-        add_field_run(cap, 'SEQ Table \\* MERGEFORMAT', str(_table_seq), bold=True)
+        field_instr = 'SEQ Table \\c \\* MERGEFORMAT' if reuse else 'SEQ Table \\* MERGEFORMAT'
+        add_field_run(cap, field_instr, str(_table_seq), bold=True)
+        if suffix:
+            r = cap.add_run(suffix); r.bold = True; r.font.name = "Times New Roman"; r.font.size = Pt(10.5)
         r = cap.add_run("."); r.bold = True; r.font.name = "Times New Roman"; r.font.size = Pt(10.5)
         cap.add_run(" ")
         add_runs(cap, desc, base_size=Pt(10.5))
@@ -648,6 +689,12 @@ while i < n:
     mb = re.match(r"^\s*[-*]\s+(.*)$", line)
     if mb:
         p = doc.add_paragraph(style="List Bullet")
+        # Direct paragraph-level override: numPr/style indent from the
+        # template can outrank the style's own indent in Word's rendering,
+        # so set it explicitly here too (belt-and-suspenders vs. the
+        # List Bullet/Number style indent set above).
+        p.paragraph_format.left_indent = Inches(0.5)
+        p.paragraph_format.first_line_indent = Inches(-0.25)
         add_runs(p, mb.group(1))
         for r in p.runs:
             if r.font.name is None:
@@ -661,7 +708,14 @@ while i < n:
     if mn:
         p = doc.add_paragraph(style="List Number")
         suppress_style_numbering(p)
-        p.add_run(f"{mn.group(1)}. ")
+        # suppress_style_numbering attaches numPr (numId=0), whose own
+        # numbering-definition indent can override the List Number style's
+        # indent in Word. Set the indent directly on the paragraph so it
+        # wins regardless.
+        p.paragraph_format.left_indent = Inches(0.5)
+        p.paragraph_format.first_line_indent = Inches(-0.25)
+        r0 = p.add_run(f"{mn.group(1)}. ")
+        r0.font.name = "Times New Roman"
         add_runs(p, mn.group(2))
         for r in p.runs:
             if r.font.name is None:

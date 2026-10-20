@@ -2,9 +2,9 @@
 
 ChiliEdgeNet was integrated into a laptop camera application, where the user places a leaf inside a region of interest (ROI) and triggers a prediction on each frame. This experiment evaluates only preprocessing and inference latency as a proof of integration feasibility; it does not use camera frames to estimate real-field accuracy.
 
-The test session comprises **62 predictions**, run at batch size 1 on a **13th Gen Intel Core i7-13650HX** CPU. The measured interval starts from converting the ROI's RGB image to PIL, continuing through resize, normalization, model inference, softmax, and top-1 prediction. The measurement excludes time for reading frames from the camera, cropping the ROI, converting BGR to RGB, rendering the UI, or writing files.
+The test session comprises 62 predictions, run at batch size 1 on a 13th Gen Intel Core i7-13650HX CPU. The measured interval starts from converting the ROI's RGB image to PIL, continuing through resize, normalization, model inference, softmax, and top-1 prediction. The measurement excludes time for reading frames from the camera, cropping the ROI, converting BGR to RGB, rendering the UI, or writing files.
 
-**Table 11. Preprocessing and inference latency of ChiliEdgeNet on a laptop CPU.**
+**Table 11.** Preprocessing and inference latency of ChiliEdgeNet on a laptop CPU.
 
 | Metric | Latency (ms) |
 |---|---:|
