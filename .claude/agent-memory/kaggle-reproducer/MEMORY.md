@@ -10,3 +10,7 @@
 - [LDI-NET Project](project_ldinet.md) — Reproduction 2026-06-19: PyTorch hybrid CNN+Transformer, multi-label paper adapted single-label (decoder→GAP+Linear), D=384/H=6 user-confirmed
 - [PDLC-ViT Project](project_pdlcvit.md) — Reproduction 2026-06-19: PyTorch MTL ViT adapted classification-only, co-scale/co-attention interpreted, ViT-Small specs user-confirmed
 - [Meta-Ensemble Project](project_metaensemble.md) — Reproduction 2026-06-19: TF/Keras 2-level stacking (MLP-Mixer+LSTM+SVM), patch Dense(1728→128) inflates params vs paper, chili dataset
+- [DualSwinSobel Project](project_dualswinsobel.md) — 2026-10-20: PyTorch 2x Swin-T + trainable Sobel, norm in-model, user-requested early stopping (patience 15)
+- [TLMViT Project](project_tlmvit.md) — 2026-10-20: Keras 3 frozen VGG19 + ViT on 8x8x512, head = flatten 4 patch tokens (256), registered custom layers
+- [TFC-WDA Project](project_tfcwda.md) — 2026-10-20: PyTorch MobileNetV2+MobileViT-XS fusion + WGAN-GP critic; single-dataset UDA (target=train unlabeled)
+- [FOTCA reproduction](project_fotca.md) — 21_AFNO decisions: complex-conv FFT embed, 30 ep + early stop, 78.8M vs 59.1M params
